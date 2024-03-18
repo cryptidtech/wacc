@@ -1,0 +1,21 @@
+[package]
+name = "wacc"
+version = "0.1.24"
+edition = "2021"
+authors = ["Dave Huseby <dwh@linuxprogrammer.org>"]
+description = "Web assembly cryptographic constructs VM implementation"
+repository = "https://github.com/cryptidtech/wacc.git"
+readme = "README.md"
+license = "Functional Source License 1.1"
+
+[dependencies]
+hex = "0.4"
+libipld = { version = "0.16", features = ["dag-cbor"] }
+multicid = { version = "0.1", git = "https://github.com/cryptidtech/multicid.git" }
+multihash = { version = "0.2", git = "https://github.com/cryptidtech/multihash.git" }
+multikey = { version = "0.8", git = "https://github.com/cryptidtech/multikey.git" }
+multisig = { version = "0.3", git = "https://github.com/cryptidtech/multisig.git" }
+multitrait = { version = "0.1", git = "https://github.com/cryptidtech/multitrait.git" }
+multiutil = { version = "0.2", git = "https://github.com/cryptidtech/multiutil.git" }
+thiserror = "1.0"
+wasmtime = "18.0"
