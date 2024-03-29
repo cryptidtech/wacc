@@ -2,7 +2,7 @@
   ;; importing the wacc push functions
   (import "wacc" "_push" (func $push (param i32 i32) (result i32)))
 
-  ;; standard unlock function
+  ;; function to provide a solution for a pubkey signature lock
   (func $main (export "for_great_justice") (param) (result i32)
     ;; "/entry/"
     i32.const 0

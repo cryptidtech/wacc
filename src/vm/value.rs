@@ -24,7 +24,15 @@ impl fmt::Display for Value {
     }
 }
 
-impl From<Vec<u8>> for Value {
+impl From<&[u8]> for Value 
+{
+    fn from(b: &[u8]) -> Self {
+        Value::Bin(b.to_vec())
+    }
+}
+
+impl From<Vec<u8>> for Value 
+{
     fn from(b: Vec<u8>) -> Self {
         Value::Bin(b)
     }

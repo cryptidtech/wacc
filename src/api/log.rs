@@ -1,15 +1,12 @@
 use crate::{
-    api::{get_string_param, WASM_FALSE, WASM_TRUE},
+    api::{get_string, inc_check_and_fail, WASM_TRUE},
     error::ApiError,
     Context, Error,
 };
 use std::io::Write;
 use wasmtime::{AsContextMut, Caller, FuncType, Linker, Val, ValType::*};
 
-pub(crate) fn add_to_linker<'a, V, E>(linker: &mut Linker<Context<'a, V, E>>) -> Result<(), Error>
-where
-    V: Default + AsRef<[u8]> + 'static,
-    E: std::error::Error + 'static,
+pub(crate) fn add_to_linker<'a>(linker: &mut Linker<Context<'a>>) -> Result<(), Error>
 {
     linker
         .func_new("wacc", "_log", FuncType::new([I32, I32], [I32]), log)
@@ -17,28 +14,27 @@ where
     Ok(())
 }
 
-pub(crate) fn log<'a, 'b, 'c, 'd, V, E>(
-    mut caller: Caller<'a, Context<'b, V, E>>,
+pub(crate) fn log<'a, 'b, 'c>(
+    mut caller: Caller<'a, Context<'b>>,
     params: &'c [Val],
-    results: &'d mut [Val],
+    results: &mut [Val],
 ) -> Result<(), wasmtime::Error>
-where
-    V: Default + AsRef<[u8]>,
-    E: std::error::Error + 'static,
 {
     // get the string parameter
-    let string = match get_string_param::<V, E>(&mut caller, params) {
+    let log_line = match get_string(&mut caller, params) {
         Ok(s) => s,
-        _ => {
-            results[0] = WASM_FALSE;
-            return Ok(());
-        }
+        Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?)
     };
 
     // write the log entry to the execution context log buffer
-    let mut ctx = caller.as_context_mut();
-    let context = ctx.data_mut();
-    writeln!(&mut context.log, "{string}")?;
+    {
+        // get the context
+        let mut ctx = caller.as_context_mut();
+        let context = ctx.data_mut();
+
+        // add the log line
+        writeln!(&mut context.log, "{log_line}")?;
+    }
 
     results[0] = WASM_TRUE;
     Ok(())

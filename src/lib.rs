@@ -1,5 +1,6 @@
 //!
 #![warn(missing_docs)]
+#![allow(dead_code)]
 #![deny(
     trivial_casts,
     trivial_numeric_casts,

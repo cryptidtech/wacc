@@ -44,7 +44,7 @@ pub enum ApiError {
     #[error("failed to get memory value")]
     MemoryDecodeError,
     /// Failed to register a function
-    #[error("failed register API function")]
+    #[error("failed register API function {0}")]
     RegisterApiFailed(String),
 }
 
@@ -55,4 +55,7 @@ pub enum VmError {
     /// Missing VM context
     #[error("Missing VM context")]
     MissingContext,
+    /// Invalid key-path for the key-value store
+    #[error("Invalid key-path {0}")]
+    InvalidKeyPath(String),
 }

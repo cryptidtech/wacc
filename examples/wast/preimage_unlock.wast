@@ -2,18 +2,12 @@
   ;; importing the wacc push functions
   (import "wacc" "_push" (func $push (param i32 i32) (result i32)))
 
-  ;; standard unlock function
+  ;; function to provide a solution for a preimage lock
   (func $main (export "for_great_justice") (param) (result i32)
-    ;; "/entry/"
+    ;; push("/entry/proof")
     i32.const 0
-    i32.const 7
-    call $push
-
-    ;; "/entry/proof"
-    i32.const 7
     i32.const 12
     call $push
-
     return
   )
 
@@ -23,6 +17,5 @@
   ;; String constants for referenceing key-value pairs
   ;;
   ;;                   [NAME]                 [IDX] [LEN]
-  (data (i32.const  0) "/entry/"       )  ;;     0     7
-  (data (i32.const  7) "/entry/proof"  )  ;;     7     12
+  (data (i32.const  0) "/entry/proof"  )  ;;      0    12
 )

@@ -3,20 +3,14 @@ use wasmtime::{Config, Engine, Linker, Module, Store};
 
 /// Builder type for constructing WacVm instances
 #[derive(Default)]
-pub struct Builder<'a, V, E>
-where
-    V: Default + AsRef<[u8]>,
-    E: std::error::Error + 'static,
+pub struct Builder<'a>
 {
     fuel: Option<u64>,
     bytes: Vec<u8>,
-    context: Option<Context<'a, V, E>>,
+    context: Option<Context<'a>>,
 }
 
-impl<'a, V, E> Builder<'a, V, E>
-where
-    V: Default + AsRef<[u8]> + 'static,
-    E: std::error::Error + 'static,
+impl<'a> Builder<'a>
 {
     /// create a new builder
     pub fn new() -> Self {
@@ -40,13 +34,13 @@ where
     }
 
     /// Add the context for the application state
-    pub fn with_context(mut self, context: Context<'a, V, E>) -> Self {
+    pub fn with_context(mut self, context: Context<'a>) -> Self {
         self.context = Some(context);
         self
     }
 
     /// Tries to build the [`Instance`] from the builder configuration
-    pub fn try_build(self) -> Result<Instance<'a, V, E>, Error> {
+    pub fn try_build(self) -> Result<Instance<'a>, Error> {
         // configure the engine
         let mut config = Config::default();
         config.consume_fuel(self.fuel.is_some());

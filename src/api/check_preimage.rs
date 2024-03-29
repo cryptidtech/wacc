@@ -1,5 +1,5 @@
 use crate::{
-    api::{get_string_param, inc_check_and_fail, WASM_TRUE},
+    api::{get_string, inc_check_and_fail, WASM_FALSE, WASM_TRUE},
     error::ApiError,
     Context, Error, Value,
 };
@@ -7,10 +7,7 @@ use multihash::{mh, Multihash};
 use multiutil::CodecInfo;
 use wasmtime::{AsContextMut, Caller, FuncType, Linker, Val, ValType::*};
 
-pub(crate) fn add_to_linker<'a, V, E>(linker: &mut Linker<Context<'a, V, E>>) -> Result<(), Error>
-where
-    V: Default + AsRef<[u8]> + 'static,
-    E: std::error::Error + 'static,
+pub(crate) fn add_to_linker<'a>(linker: &mut Linker<Context<'a>>) -> Result<(), Error>
 {
     linker
         .func_new(
@@ -23,23 +20,19 @@ where
     Ok(())
 }
 
-pub(crate) fn check_preimage<'a, 'b, 'c, 'd, V, E>(
-    mut caller: Caller<'a, Context<'b, V, E>>,
+pub(crate) fn check_preimage<'a, 'b, 'c>(
+    mut caller: Caller<'a, Context<'b>>,
     params: &'c [Val],
-    results: &'d mut [Val],
+    results: &mut [Val],
 ) -> Result<(), wasmtime::Error>
-where
-    V: Default + AsRef<[u8]>,
-    E: std::error::Error + 'static,
 {
+    // any early exit, the result is WASM_FALSE
+    results[0] = WASM_FALSE;
+
     // get the key parameter
-    let key = match get_string_param::<V, E>(&mut caller, params) {
+    let key = match get_string(&mut caller, params) {
         Ok(s) => s,
-        Err(e) => {
-            let mut ctx = caller.as_context_mut();
-            let context = ctx.data_mut();
-            return Ok(inc_check_and_fail(context, results, &e.to_string())?);
-        }
+        Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?)
     };
 
     // get the context
@@ -48,18 +41,12 @@ where
 
     // look up the hash and try to decode it
     let hash = {
-        match context.pairs.get(key.as_str()) {
+        match context.pairs.get(&key) {
             Some(v) => match Multihash::try_from(v.as_ref()) {
                 Ok(hash) => hash,
-                Err(e) => return Ok(inc_check_and_fail(context, results, &e.to_string())?),
+                Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?),
             },
-            None => {
-                return Ok(inc_check_and_fail(
-                    context,
-                    results,
-                    &format!("no value associated with {}", key.as_str()),
-                )?)
-            }
+            None => return Ok(inc_check_and_fail(&mut caller, results, &format!("no value associated with {key}"))?)
         }
     };
 
@@ -77,47 +64,23 @@ where
         }
     }
 
-    // pop the top item and look it up...this is the preimage
+    // get the preimage data from the stack
     let preimage = {
         match context.stack.last() {
-            Some(Value::Str(k)) => match context.pairs.get(k.as_str()) {
-                Some(pi) => pi,
-                None => {
-                    return Ok(inc_check_and_fail(
-                        context,
-                        results,
-                        &format!("no value associated with {}", key.as_str()),
-                    )?)
+            Some(Value::Bin(v)) => match mh::Builder::new_from_bytes(hash.codec(), v) {
+                Ok(builder) => match builder.try_build() {
+                    Ok(hash) => hash,
+                    Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?),
                 }
+                Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?),
             },
-            _ => {
-                return Ok(inc_check_and_fail(
-                    context,
-                    results,
-                    "no key name on stack",
-                )?)
-            }
+            _ => return Ok(inc_check_and_fail(&mut caller, results, "no multihash data on stack")?)
         }
     };
 
-    // build a hash from the preimage data using the same codec
-    let builder = match mh::Builder::new_from_bytes(hash.codec(), preimage) {
-        Ok(b) => b,
-        Err(e) => return Ok(inc_check_and_fail(context, results, &e.to_string())?),
-    };
-
-    let phash = match builder.try_build() {
-        Ok(ph) => ph,
-        Err(e) => return Ok(inc_check_and_fail(context, results, &e.to_string())?),
-    };
-
     // check that the hashes match
-    if hash != phash {
-        return Ok(inc_check_and_fail(
-            context,
-            results,
-            "preimage doesn't match",
-        )?);
+    if hash != preimage {
+        return Ok(inc_check_and_fail(&mut caller, results, "preimage doesn't match")?);
     }
 
     // the hash check passed so pop the argument from the stack
@@ -126,6 +89,7 @@ where
     // push the SUCCESS marker with the check count
     context.stack.push(context.check_count.into());
 
+    // we succeeded
     results[0] = WASM_TRUE;
     Ok(())
 }

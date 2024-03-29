@@ -3,25 +3,19 @@ use wasmtime::{Linker, Module, Store};
 
 /// Represents an instance of a WACC containing the options, code, as well as
 /// the application state and Wac execution context.
-pub struct Instance<'a, V, E>
-where
-    V: Default + AsRef<[u8]>,
-    E: std::error::Error,
+pub struct Instance<'a>
 {
     /// Virtual machine linker
-    pub linker: Linker<Context<'a, V, E>>,
+    pub linker: Linker<Context<'a>>,
 
     /// Virtual machine module to execute
     pub module: Module,
 
     /// Virtual machine store for state
-    pub store: Store<Context<'a, V, E>>,
+    pub store: Store<Context<'a>>,
 }
 
-impl<'a, V, E> Instance<'a, V, E>
-where
-    V: Default + AsRef<[u8]>,
-    E: std::error::Error,
+impl<'a> Instance<'a>
 {
     /// Executes the instance to completion
     pub fn run(&mut self, fname: &str) -> Result<bool, Error> {

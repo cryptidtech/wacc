@@ -1,13 +1,15 @@
-use std::{collections::HashMap, fs::read, path::PathBuf};
-use wacc::{storage::Pairs, vm, Error};
+use std::{collections::HashMap, convert::AsRef, fs::read, path::PathBuf};
+use wacc::{storage::Pairs, vm};
 use wasmtime::{AsContextMut, StoreLimitsBuilder};
+
+const MEMORY_LIMIT: usize = 1 << 22; /* 4MB */
 
 fn load_wasm(file_name: &str) -> Vec<u8> {
     let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     pb.push("target");
     pb.push(file_name);
     println!("trying to load: {:?}", pb.as_os_str());
-    read(&pb).expect("Error loading file {file_name}")
+    read(&pb).expect(&format!("Error loading file {file_name}"))
 }
 
 fn load_wast(file_name: &str) -> Vec<u8> {
@@ -16,7 +18,7 @@ fn load_wast(file_name: &str) -> Vec<u8> {
     pb.push("wast");
     pb.push(file_name);
     println!("trying to load: {:?}", pb.as_os_str());
-    read(&pb).expect("Error loading file {file_name}")
+    read(&pb).expect(&format!("Error loading file {file_name}"))
 }
 
 fn test_example<'a>(
@@ -24,7 +26,7 @@ fn test_example<'a>(
     expected: bool,
     pairs: &'a Kvp,
     stack: &'a mut Vec<vm::Value>,
-) -> vm::Instance<'a, Vec<u8>, Error> {
+) -> vm::Instance<'a> {
     // build the context
     let context = vm::Context {
         pairs,
@@ -32,7 +34,7 @@ fn test_example<'a>(
         check_count: 0,
         log: Vec::default(),
         limiter: StoreLimitsBuilder::new()
-            .memory_size(1 << 16 /* 64KB */)
+            .memory_size(MEMORY_LIMIT)
             .instances(2)
             .memories(1)
             .build(),
@@ -57,24 +59,15 @@ struct Kvp {
     pub pairs: HashMap<String, Vec<u8>>,
 }
 
-impl Pairs<Vec<u8>> for Kvp {
-    type Error = Error;
-
+impl Pairs for Kvp {
     /// get a value associated with the key
     fn get(&self, key: &str) -> Option<Vec<u8>> {
-        println!("getting {}", key);
-        self.pairs.get(key).cloned()
+        self.pairs.get(&key.to_string()).cloned()
     }
 
-    /// add a key-value pair to the storage
-    fn put(&mut self, key: &str, value: &Vec<u8>) -> Result<Vec<u8>, Self::Error> {
-        if let Some(v) = self.pairs.insert(key.to_string(), value.clone()) {
-            Ok(v)
-        } else {
-            return Err(Error::Wasmtime(
-                "failed to put key-value pair in pair store".to_string(),
-            ));
-        }
+    /// add a key-value pair to the storage, return previous value if overwritten
+    fn put(&mut self, key: &str, value: &dyn AsRef<[u8]>) -> Option<Vec<u8>> {
+        self.pairs.insert(key.to_string(), value.as_ref().to_vec())
     }
 }
 
@@ -82,8 +75,8 @@ impl Pairs<Vec<u8>> for Kvp {
 fn test_unlock_wast() {
     // set up the key-value pair store
     let mut kvp = Kvp::default();
-    let _ = kvp.put("/entry/", &"foo".as_bytes().to_vec());
-    let _ = kvp.put("/entry/proof", &"bar".as_bytes().to_vec());
+    let _ = kvp.put("/entry/", &b"foo".to_vec());
+    let _ = kvp.put("/entry/proof", &b"bar".to_vec());
 
     // load the script
     let mut stack = Vec::default();
@@ -94,16 +87,16 @@ fn test_unlock_wast() {
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
     assert_eq!(2, context.stack.len());
-    assert_eq!(context.stack[0], "/entry/".to_string().into());
-    assert_eq!(context.stack[1], "/entry/proof".to_string().into());
+    assert_eq!(context.stack[0], vm::Value::Bin(b"foo".to_vec()));
+    assert_eq!(context.stack[1], vm::Value::Bin(b"bar".to_vec()));
 }
 
 #[test]
 fn test_unlock_wasm() {
     // set up the key-value pair store
     let mut kvp = Kvp::default();
-    let _ = kvp.put("/entry/", &"foo".as_bytes().to_vec());
-    let _ = kvp.put("/entry/proof", &"bar".as_bytes().to_vec());
+    let _ = kvp.put("/entry/", &b"foo".to_vec());
+    let _ = kvp.put("/entry/proof", &b"bar".to_vec());
 
     // load the script
     let mut stack = Vec::default();
@@ -114,6 +107,6 @@ fn test_unlock_wasm() {
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
     assert_eq!(2, context.stack.len());
-    assert_eq!(context.stack[0], "/entry/".to_string().into());
-    assert_eq!(context.stack[1], "/entry/proof".to_string().into());
+    assert_eq!(context.stack[0], vm::Value::Bin(b"foo".to_vec()));
+    assert_eq!(context.stack[1], vm::Value::Bin(b"bar".to_vec()));
 }

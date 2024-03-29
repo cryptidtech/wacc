@@ -8,6 +8,6 @@ fn log(s: &str) -> bool {
 }
 
 #[no_mangle]
-pub fn move_zig() -> bool {
+pub fn move_every_zig() -> bool {
     log("Hello World!")
 }
