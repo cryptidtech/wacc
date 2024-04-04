@@ -1,5 +1,5 @@
 use crate::{
-    api::{get_string, inc_check_and_fail, WASM_FALSE, WASM_TRUE},
+    api,
     error::ApiError,
     Context, Error,
 };
@@ -19,26 +19,18 @@ pub(crate) fn push<'a, 'b, 'c>(
     results: &mut [Val],
 ) -> Result<(), wasmtime::Error>
 {
-    // any early exit, the result is WASM_FALSE
-    results[0] = WASM_FALSE;
+    // get the string parameter
+    let ret = api::get_string(&mut caller, params);
 
-    // get the key parameter
-    let key = match get_string(&mut caller, params) {
-        Ok(s) => s,
-        Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?)
-    };
-
-    // Get the context
+    // get the context
     let mut ctx = caller.as_context_mut();
     let context = ctx.data_mut();
 
-    // try to look up the key-value pair by key and push the result onto the stack
-    match context.pairs.get(&key) {
-        Some(v) => context.stack.push(v.into()), // pushes Value::Bin(Vec<u8>)
-        None => return Ok(inc_check_and_fail(&mut caller, results, &format!("missing key: {key}"))?)
-    }
+    // check the preimage
+    results[0] = match ret {
+        Ok(key) => context.push(&key),
+        Err(e) => context.fail(&e.to_string()),
+    };
 
-    // we succeeded
-    results[0] = WASM_TRUE;
     Ok(())
 }

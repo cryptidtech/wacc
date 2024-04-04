@@ -46,6 +46,9 @@ pub enum ApiError {
     /// Failed to register a function
     #[error("failed register API function {0}")]
     RegisterApiFailed(String),
+    /// Missing key-value
+    #[error("no value associated with key {0}")]
+    NoValue(String),
 }
 
 /// Vm errors created by this library

@@ -7,8 +7,8 @@ pub(crate) mod check_signature;
 pub(crate) mod log;
 pub(crate) mod push;
 
-use crate::{error::ApiError, Context, Error, Value};
-use wasmtime::{AsContextMut, Caller, Extern, Linker, Val};
+use crate::{error::ApiError, Context, Error};
+use wasmtime::{Caller, Extern, Linker, Val};
 
 pub const WASM_TRUE: Val = Val::I32(1);
 pub const WASM_FALSE: Val = Val::I32(0);
@@ -67,21 +67,4 @@ pub(crate) fn get_string<'a, 'b, 'c>(
     };
 
     Ok(s)
-}
-
-pub(crate) fn inc_check_and_fail<'a, 'b>(
-    caller: &mut Caller<'a, Context<'b>>,
-    results: &mut [Val],
-    err: &str,
-) -> Result<(), Error>
-{
-    // get the context
-    let mut ctx = caller.as_context_mut();
-    let context = ctx.data_mut();
-    // update the context check_count
-    context.check_count += 1;
-    // push the failure onto the stack
-    context.stack.push(Value::Failure(err.to_string()));
-    results[0] = WASM_FALSE;
-    Ok(())
 }

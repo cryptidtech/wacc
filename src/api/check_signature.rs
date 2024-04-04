@@ -1,10 +1,8 @@
 use crate::{
-    api::{get_string, inc_check_and_fail, WASM_FALSE, WASM_TRUE},
+    api,
     error::ApiError,
-    Context, Error, Value,
+    Context, Error,
 };
-use multikey::{Multikey, Views};
-use multisig::Multisig;
 use wasmtime::{AsContextMut, Caller, FuncType, Linker, Val, ValType::*};
 
 pub(crate) fn add_to_linker<'a>(linker: &mut Linker<Context<'a>>) -> Result<(), Error>
@@ -26,85 +24,18 @@ pub(crate) fn check_signature<'a, 'b, 'c>(
     results: &mut [Val],
 ) -> Result<(), wasmtime::Error>
 {
-    // any early exit, the result is WASM_FALSE
-    results[0] = WASM_FALSE;
-
-    // get the key parameter
-    let key = match get_string(&mut caller, params) {
-        Ok(s) => s,
-        Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?)
-    };
+    // get the string parameter
+    let ret = api::get_string(&mut caller, params);
 
     // get the context
     let mut ctx = caller.as_context_mut();
     let context = ctx.data_mut();
 
-    // look up the hash and try to decode it
-    let pubkey = {
-        match context.pairs.get(&key) {
-            Some(v) => match Multikey::try_from(v.as_ref()) {
-                Ok(mk) => mk,
-                Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?),
-            },
-            None => return Ok(inc_check_and_fail(&mut caller, results, &format!("no multikey associated with {key}"))?)
-        }
+    // check the preimage
+    results[0] = match ret {
+        Ok(key) => context.check_signature(&key),
+        Err(e) => context.fail(&e.to_string()),
     };
 
-    'stack: loop {
-        match context.stack.last() {
-            Some(&Value::Success(_)) => {
-                // consume success markers
-                let _ = context.stack.pop();
-            }
-            Some(&Value::Failure(_)) => {
-                // consume failure marker as well
-                let _ = context.stack.pop();
-            }
-            None | Some(_) => break 'stack,
-        }
-    }
-
-    let mut stack_iter = context.stack.iter().rev();
-
-    // pop the top item and verify that it is a Multisig
-    let sig = {
-        match stack_iter.next() {
-            Some(Value::Bin(v)) => match Multisig::try_from(v.as_ref()) {
-                Ok(sig) => sig,
-                Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?),
-            },
-            _ => return Ok(inc_check_and_fail(&mut caller, results, "no multisig on stack")?)
-        }
-    };
-
-    // pop the top item and verify that it is a binary blob
-    let msg = {
-        match stack_iter.next() {
-            Some(Value::Bin(v)) => v,
-            _ => return Ok(inc_check_and_fail(&mut caller, results, "no message on stack")?)
-        }
-    };
-
-    // verify the signature
-    let verify_view = match pubkey.verify_view() {
-        Ok(v) => v,
-        Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?),
-    };
-
-    match verify_view.verify(&sig, Some(msg.as_ref())) {
-        Ok(_) => {
-            // the signature verification worked so pop the two arguments off
-            // of the stack before continuing
-            context.stack.pop();
-            context.stack.pop();
-        }
-        Err(e) => return Ok(inc_check_and_fail(&mut caller, results, &e.to_string())?),
-    }
-
-    // push the SUCCESS marker with the check count
-    context.stack.push(context.check_count.into());
-
-    // we succeeded
-    results[0] = WASM_TRUE;
     Ok(())
 }

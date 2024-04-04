@@ -1,5 +1,5 @@
 use std::{collections::HashMap, convert::AsRef, fs::read, path::PathBuf};
-use wacc::{storage::Pairs, vm};
+use wacc::{storage::{Pairs, Stack}, vm};
 use wasmtime::{AsContextMut, StoreLimitsBuilder};
 
 const MEMORY_LIMIT: usize = 1 << 22; /* 4MB */
@@ -25,12 +25,14 @@ fn test_example<'a>(
     script: Vec<u8>,
     expected: bool,
     pairs: &'a Kvp,
-    stack: &'a mut Vec<vm::Value>,
+    pstack: &'a mut Stk,
+    rstack: &'a mut Stk,
 ) -> vm::Instance<'a> {
     // build the context
     let context = vm::Context {
         pairs,
-        stack,
+        pstack,
+        rstack,
         check_count: 0,
         log: Vec::default(),
         limiter: StoreLimitsBuilder::new()
@@ -71,6 +73,46 @@ impl Pairs for Kvp {
     }
 }
 
+#[derive(Default)]
+struct Stk {
+    pub stack: Vec<vm::Value>
+}
+
+impl Stack for Stk {
+    /// push a value onto the stack
+    fn push(&mut self, value: vm::Value) {
+        self.stack.push(value);
+    }
+
+    /// remove the last top value from the stack
+    fn pop(&mut self) -> Option<vm::Value> {
+        self.stack.pop()
+    }
+
+    /// get a reference to the top value on the stack 
+    fn top(&self) -> Option<&vm::Value> {
+        self.stack.last()
+    }
+
+    /// peek at the item at the given index
+    fn peek(&self, idx: usize) -> Option<&vm::Value> {
+        if idx >= self.stack.len() {
+            return None;
+        }
+        Some(&self.stack[self.stack.len() - 1 - idx])
+    }
+
+    /// return the number of values on the stack
+    fn len(&self) -> usize {
+        self.stack.len()
+    }
+
+    /// return if the stack is empty
+    fn is_empty(&self) -> bool {
+        self.stack.is_empty()
+    }
+}
+
 #[test]
 fn test_unlock_wast() {
     // set up the key-value pair store
@@ -79,16 +121,18 @@ fn test_unlock_wast() {
     let _ = kvp.put("/entry/proof", &b"bar".to_vec());
 
     // load the script
-    let mut stack = Vec::default();
+    let mut pstack = Stk::default();
+    let mut rstack = Stk::default();
     let script = load_wast("unlock.wast");
-    let mut instance = test_example(script, true, &kvp, &mut stack);
+    let mut instance = test_example(script, true, &kvp, &mut pstack, &mut rstack);
 
     // Get the context
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
-    assert_eq!(2, context.stack.len());
-    assert_eq!(context.stack[0], vm::Value::Bin(b"foo".to_vec()));
-    assert_eq!(context.stack[1], vm::Value::Bin(b"bar".to_vec()));
+    assert_eq!(2, context.pstack.len());
+    assert_eq!(context.pstack.top(), Some(&vm::Value::Bin(b"bar".to_vec())));
+    assert_eq!(context.pstack.peek(1), Some(&vm::Value::Bin(b"foo".to_vec())));
+    assert_eq!(0, context.rstack.len());
 }
 
 #[test]
@@ -99,14 +143,16 @@ fn test_unlock_wasm() {
     let _ = kvp.put("/entry/proof", &b"bar".to_vec());
 
     // load the script
-    let mut stack = Vec::default();
+    let mut pstack = Stk::default();
+    let mut rstack = Stk::default();
     let script = load_wasm("unlock.wasm");
-    let mut instance = test_example(script, true, &kvp, &mut stack);
+    let mut instance = test_example(script, true, &kvp, &mut pstack, &mut rstack);
 
     // Get the context
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
-    assert_eq!(2, context.stack.len());
-    assert_eq!(context.stack[0], vm::Value::Bin(b"foo".to_vec()));
-    assert_eq!(context.stack[1], vm::Value::Bin(b"bar".to_vec()));
+    assert_eq!(2, context.pstack.len());
+    assert_eq!(context.pstack.top(), Some(&vm::Value::Bin(b"bar".to_vec())));
+    assert_eq!(context.pstack.peek(1), Some(&vm::Value::Bin(b"foo".to_vec())));
+    assert_eq!(0, context.rstack.len());
 }
