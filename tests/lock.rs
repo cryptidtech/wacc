@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: FSL-1.1
 use std::{collections::BTreeMap, fs::read, path::PathBuf};
-use wacc::{storage::{Pairs, Stack}, vm::{Builder, Context, Instance, Key, Value}};
+use wacc::{storage::{Pairs, Stack}, vm::{Builder, Context, Instance, Value}};
 use wasmtime::{AsContextMut, StoreLimitsBuilder};
 
 const MEMORY_LIMIT: usize = 1 << 22; /* 4MB */
@@ -60,18 +60,18 @@ fn test_example<'a>(
 
 #[derive(Default)]
 struct Kvp {
-    pub pairs: BTreeMap<Key, Value>,
+    pub pairs: BTreeMap<String, Value>,
 }
 
 impl Pairs for Kvp {
     /// get a value associated with the key
-    fn get(&self, key: &Key) -> Option<Value> {
-        self.pairs.get(&key).cloned()
+    fn get(&self, key: &str) -> Option<Value> {
+        self.pairs.get(&key.to_string()).cloned()
     }
 
     /// add a key-value pair to the storage, return previous value if overwritten
-    fn put(&mut self, key: &Key, value: &Value) -> Option<Value> {
-        self.pairs.insert(key.clone(), value.clone())
+    fn put(&mut self, key: &str, value: &Value) -> Option<Value> {
+        self.pairs.insert(key.to_string(), value.clone())
     }
 }
 
@@ -124,8 +124,8 @@ fn test_pubkey_lock_wast() {
     { // unlock
         // set up the key-value pair store with the message and signature data
         let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put(&"/entry/".try_into().unwrap(), &"for great justice, move every zig!".as_bytes().into());
-        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap().into());
+        let _ = kvp_unlock.put("/entry/", &"for great justice, move every zig!".as_bytes().into());
+        let _ = kvp_unlock.put("/entry/proof", &hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap().into());
 
         // load the unlock script
         let script = load_wast("unlock.wast");
@@ -144,7 +144,7 @@ fn test_pubkey_lock_wast() {
     { // lock
         // set up the key-value pair store with the encoded Multikey
         let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put(&"/pubkey".try_into().unwrap(), &hex::decode("3aed010874657374206b6579010120de972f8ef7b4056d1f4e55b500945cf0ce04407d391bfa5b62459d90e0e00edb").unwrap().into());
+        let _ = kvp_lock.put("/pubkey", &hex::decode("3aed010874657374206b6579010120de972f8ef7b4056d1f4e55b500945cf0ce04407d391bfa5b62459d90e0e00edb").unwrap().into());
 
         // load the lock script
         let script = load_wast("lock.wast");
@@ -171,8 +171,8 @@ fn test_preimage_lock_wast() {
     { // unlock
         // set up the key-value pair store with the message and a preimage
         let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put(&"/entry/".try_into().unwrap(), &"blah".as_bytes().into());
-        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &"for great justice, move every zig!".as_bytes().into());
+        let _ = kvp_unlock.put("/entry/", &"blah".as_bytes().into());
+        let _ = kvp_unlock.put("/entry/proof", &"for great justice, move every zig!".as_bytes().into());
 
         // load the unlock script
         let script = load_wast("unlock.wast");
@@ -191,7 +191,7 @@ fn test_preimage_lock_wast() {
     { // lock
         // set up the key-value pair store with the encoded Multihash
         let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put(&"/hash".try_into().unwrap(), &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
+        let _ = kvp_lock.put("/hash", &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
 
         // load the lock script
         let script = load_wast("lock.wast");
@@ -220,8 +220,8 @@ fn test_pubkey_lock_wasm() {
     { // unlock
         // set up the key-value pair store with the message and signature data
         let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put(&"/entry/".try_into().unwrap(), &"for great justice, move every zig!".as_bytes().into());
-        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap().into());
+        let _ = kvp_unlock.put("/entry/", &"for great justice, move every zig!".as_bytes().into());
+        let _ = kvp_unlock.put("/entry/proof", &hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap().into());
 
         // load the unlock script
         let script = load_wasm("unlock.wasm");
@@ -240,7 +240,7 @@ fn test_pubkey_lock_wasm() {
     { // lock
         // set up the key-value pair store with the encoded Multikey
         let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put(&"/pubkey".try_into().unwrap(), &hex::decode("3aed010874657374206b6579010120de972f8ef7b4056d1f4e55b500945cf0ce04407d391bfa5b62459d90e0e00edb").unwrap().into());
+        let _ = kvp_lock.put("/pubkey", &hex::decode("3aed010874657374206b6579010120de972f8ef7b4056d1f4e55b500945cf0ce04407d391bfa5b62459d90e0e00edb").unwrap().into());
 
         // load the lock script
         let script = load_wasm("lock.wasm");
@@ -267,8 +267,8 @@ fn test_preimage_lock_wasm() {
     { // unlock
         // set up the key-value pair store with the message and a preimage
         let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put(&"/entry/".try_into().unwrap(), &"blah".as_bytes().into());
-        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &"for great justice, move every zig!".as_bytes().into());
+        let _ = kvp_unlock.put("/entry/", &"blah".as_bytes().into());
+        let _ = kvp_unlock.put("/entry/proof", &"for great justice, move every zig!".as_bytes().into());
 
         // load the unlock script
         let script = load_wasm("unlock.wasm");
@@ -287,7 +287,7 @@ fn test_preimage_lock_wasm() {
     { // lock
         // set up the key-value pair store with the encoded Multihash
         let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put(&"/hash".try_into().unwrap(), &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
+        let _ = kvp_lock.put("/hash", &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
 
         // load the lock script
         let script = load_wasm("lock.wasm");

@@ -2,8 +2,7 @@
 use crate::Value;
 
 /// Trait for a value stack
-pub trait Stack
-{
+pub trait Stack {
     /// push a value onto the stack
     fn push(&mut self, value: Value);
 

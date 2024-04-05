@@ -4,7 +4,7 @@ pub(crate) mod check_signature;
 pub(crate) mod log;
 pub(crate) mod push;
 
-use crate::{error::ApiError, Context, Error, Key};
+use crate::{error::ApiError, Context, Error};
 use wasmtime::{Caller, Extern, Linker, Val};
 
 pub const WASM_TRUE: Val = Val::I32(1);
@@ -60,16 +60,4 @@ pub(crate) fn get_string<'a, 'b, 'c>(
     };
 
     Ok(s)
-}
-
-/// This function gets a string and tries to construct a Key from it 
-pub(crate) fn get_key<'a, 'b, 'c>(
-    caller: &mut Caller<'a, Context<'b>>,
-    params: &'c [Val],
-) -> Result<Key, Error>
-{
-    match get_string(caller, params) {
-        Ok(s) => Key::try_from(s),
-        Err(e) => Err(e),
-    }
 }

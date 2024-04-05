@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: FSL-1.1
 use std::{collections::BTreeMap, fs::read, path::PathBuf};
-use wacc::{storage::{Pairs, Stack}, vm::{Builder, Context, Instance, Key, Value}};
+use wacc::{storage::{Pairs, Stack}, vm::{Builder, Context, Instance, Value}};
 use wasmtime::{AsContextMut, StoreLimitsBuilder};
 
 const MEMORY_LIMIT: usize = 1 << 22; /* 4MB */
@@ -70,18 +70,18 @@ fn test_example<'a>(
 
 #[derive(Default)]
 struct Kvp {
-    pub pairs: BTreeMap<Key, Value>,
+    pub pairs: BTreeMap<String, Value>,
 }
 
 impl Pairs for Kvp {
     /// get a value associated with the key
-    fn get(&self, key: &Key) -> Option<Value> {
-        self.pairs.get(&key).cloned()
+    fn get(&self, key: &str) -> Option<Value> {
+        self.pairs.get(&key.to_string()).cloned()
     }
 
     /// add a key-value pair to the storage, return previous value if overwritten
-    fn put(&mut self, key: &Key, value: &Value) -> Option<Value> {
-        self.pairs.insert(key.clone(), value.clone())
+    fn put(&mut self, key: &str, value: &Value) -> Option<Value> {
+        self.pairs.insert(key.to_string(), value.clone())
     }
 }
 
@@ -134,7 +134,7 @@ fn test_preimage_wast() {
     { // unlock
         // set up the key-value pair store with the preimage data
         let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &"for great justice, move every zig!".to_string().into());
+        let _ = kvp_unlock.put("/entry/proof", &"for great justice, move every zig!".to_string().into());
 
         // load the unlock script
         let script = load_wast("preimage_unlock.wast");
@@ -153,7 +153,7 @@ fn test_preimage_wast() {
         // set up the key-value pair store with the sha3 256 hash of the preimage (as serialized
         // Multihash)
         let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put(&"/hash".try_into().unwrap(), &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
+        let _ = kvp_lock.put("/hash", &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
 
         // load the lock script
         let script = load_wast("preimage_lock.wast");
@@ -178,7 +178,7 @@ fn test_preimage_wasm() {
     { // unlock
        // set up the key-value pair store with the preimage data
         let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &"for great justice, move every zig!".to_string().into());
+        let _ = kvp_unlock.put("/entry/proof", &"for great justice, move every zig!".to_string().into());
 
         // load the unlock script
         let script = load_wasm("preimage_unlock.wasm");
@@ -197,7 +197,7 @@ fn test_preimage_wasm() {
         // set up the key-value pair store with the sha3 256 hash of the preimage (as serialized
         // Multihash)
         let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put(&"/hash".try_into().unwrap(), &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
+        let _ = kvp_lock.put("/hash", &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
 
         // load the lock script
         let script = load_wasm("preimage_lock.wasm");

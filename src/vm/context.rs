@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: FSL-1.1
 use crate::{
     api::{WASM_FALSE, WASM_TRUE},
-    Key, Pairs, Stack, Value,
+    Pairs, Stack, Value,
 };
 use multihash::{mh, Multihash};
 use multikey::{Multikey, Views};
@@ -57,7 +57,7 @@ impl<'a> Context<'_> {
     }
 
     /// Push the value associated with the key onto the parameter stack
-    pub fn push(&mut self, key: &Key) -> Val {
+    pub fn push(&mut self, key: &str) -> Val {
         // try to look up the key-value pair by key and push the result onto the stack
         match self.pairs.get(key) {
             Some(v) => {
@@ -69,7 +69,7 @@ impl<'a> Context<'_> {
     }
 
     /// Checks the preimage proof against the hash already committed to
-    pub fn check_preimage(&mut self, key: &Key) -> Val {
+    pub fn check_preimage(&mut self, key: &str) -> Val {
         // look up the hash and try to decode it
         let hash = {
             match self.pairs.get(&key) {
@@ -120,7 +120,7 @@ impl<'a> Context<'_> {
     }
 
     /// Verifies the digital signature proof with the public key already committed to
-    pub fn check_signature(&mut self, key: &Key) -> Val {
+    pub fn check_signature(&mut self, key: &str) -> Val {
         // look up the hash and try to decode it
         let pubkey = {
             match self.pairs.get(key) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: FSL-1.1
 use std::{collections::BTreeMap, fs::read, path::PathBuf};
-use wacc::{storage::{Pairs, Stack}, vm::{Builder, Context, Instance, Key, Value}};
+use wacc::{storage::{Pairs, Stack}, vm::{Builder, Context, Instance, Value}};
 use wasmtime::{AsContextMut, StoreLimitsBuilder};
 
 const MEMORY_LIMIT: usize = 1 << 22; /* 4MB */
@@ -59,18 +59,18 @@ fn test_example<'a>(
 
 #[derive(Default)]
 struct Kvp {
-    pub pairs: BTreeMap<Key, Value>,
+    pub pairs: BTreeMap<String, Value>,
 }
 
 impl Pairs for Kvp {
     /// get a value associated with the key
-    fn get(&self, key: &Key) -> Option<Value> {
-        self.pairs.get(&key).cloned()
+    fn get(&self, key: &str) -> Option<Value> {
+        self.pairs.get(&key.to_string()).cloned()
     }
 
     /// add a key-value pair to the storage, return previous value if overwritten
-    fn put(&mut self, key: &Key, value: &Value) -> Option<Value> {
-        self.pairs.insert(key.clone(), value.clone())
+    fn put(&mut self, key: &str, value: &Value) -> Option<Value> {
+        self.pairs.insert(key.to_string(), value.clone())
     }
 }
 
@@ -118,8 +118,8 @@ impl Stack for Stk {
 fn test_unlock_wast() {
     // set up the key-value pair store
     let mut kvp = Kvp::default();
-    let _ = kvp.put(&"/entry/".try_into().unwrap(), &"foo".as_bytes().into());
-    let _ = kvp.put(&"/entry/proof".try_into().unwrap(), &"bar".as_bytes().into());
+    let _ = kvp.put("/entry/", &"foo".as_bytes().into());
+    let _ = kvp.put("/entry/proof", &"bar".as_bytes().into());
 
     // load the script
     let mut pstack = Stk::default();
@@ -140,8 +140,8 @@ fn test_unlock_wast() {
 fn test_unlock_wasm() {
     // set up the key-value pair store
     let mut kvp = Kvp::default();
-    let _ = kvp.put(&"/entry/".try_into().unwrap(), &"foo".as_bytes().into());
-    let _ = kvp.put(&"/entry/proof".try_into().unwrap(), &"bar".as_bytes().into());
+    let _ = kvp.put("/entry/", &"foo".as_bytes().into());
+    let _ = kvp.put("/entry/proof", &"bar".as_bytes().into());
 
     // load the script
     let mut pstack = Stk::default();

@@ -22,7 +22,7 @@ pub use storage::{Blocks, Pairs, Stack};
 
 /// The virtual machine for executing WACC code
 pub mod vm;
-pub use vm::{Builder, Context, Instance, Key, Value};
+pub use vm::{Builder, Context, Instance, Value};
 
 /// ...and in the darkness bind them
 pub mod prelude {
