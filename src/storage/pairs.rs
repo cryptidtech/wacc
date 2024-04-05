@@ -5,7 +5,7 @@ use crate::{Key, Value};
 pub trait Pairs
 {
     /// get a value associated with the key
-    fn get(&self, key: &Key) -> Option<&Value>;
+    fn get(&self, key: &Key) -> Option<Value>;
 
     /// add a key-value pair to the storage, returns the previous value if the
     /// key already exists in the data structure

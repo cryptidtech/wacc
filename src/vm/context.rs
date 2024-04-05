@@ -73,7 +73,7 @@ impl<'a> Context<'_> {
         // look up the hash and try to decode it
         let hash = {
             match self.pairs.get(&key) {
-                Some(&Value::Bin(ref v)) => match Multihash::try_from(v.as_ref()) {
+                Some(Value::Bin(v)) => match Multihash::try_from(v.as_ref()) {
                     Ok(hash) => hash,
                     Err(e) => return self.fail(&e.to_string()),
                 },
@@ -90,14 +90,14 @@ impl<'a> Context<'_> {
         // get the preimage data from the stack
         let preimage = {
             match self.pstack.top() {
-                Some(&Value::Bin(ref v)) => match mh::Builder::new_from_bytes(hash.codec(), v) {
+                Some(Value::Bin(v)) => match mh::Builder::new_from_bytes(hash.codec(), v) {
                     Ok(builder) => match builder.try_build() {
                         Ok(hash) => hash,
                         Err(e) => return self.fail(&e.to_string()),
                     }
                     Err(e) => return self.fail(&e.to_string()),
                 },
-                Some(&Value::Str(ref s)) => match mh::Builder::new_from_bytes(hash.codec(), s.as_bytes()) {
+                Some(Value::Str(s)) => match mh::Builder::new_from_bytes(hash.codec(), s.as_bytes()) {
                     Ok(builder) => match builder.try_build() {
                         Ok(hash) => hash,
                         Err(e) => return self.fail(&e.to_string()),
@@ -124,7 +124,7 @@ impl<'a> Context<'_> {
         // look up the hash and try to decode it
         let pubkey = {
             match self.pairs.get(key) {
-                Some(&Value::Bin(ref v)) => match Multikey::try_from(v.as_ref()) {
+                Some(Value::Bin(v)) => match Multikey::try_from(v.as_ref()) {
                     Ok(mk) => mk,
                     Err(e) => return self.fail(&e.to_string()),
                 },
@@ -141,7 +141,7 @@ impl<'a> Context<'_> {
         // peek at the top item and verify that it is a Multisig
         let sig = {
             match self.pstack.top() {
-                Some(&Value::Bin(ref v)) => match Multisig::try_from(v.as_ref()) {
+                Some(Value::Bin(v)) => match Multisig::try_from(v.as_ref()) {
                     Ok(sig) => sig,
                     Err(e) => return self.fail(&e.to_string()),
                 },
@@ -152,8 +152,8 @@ impl<'a> Context<'_> {
         // peek at the next item down and get the message
         let msg = {
             match self.pstack.peek(1) {
-                Some(&Value::Bin(ref v)) => v,
-                Some(&Value::Str(ref s)) => s.as_bytes(),
+                Some(Value::Bin(v)) => v,
+                Some(Value::Str(s)) => s.as_bytes().to_vec(),
                 _ => return self.fail("no message on stack"),
             }
         };

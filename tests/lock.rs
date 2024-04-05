@@ -65,8 +65,8 @@ struct Kvp {
 
 impl Pairs for Kvp {
     /// get a value associated with the key
-    fn get(&self, key: &Key) -> Option<&Value> {
-        self.pairs.get(&key)
+    fn get(&self, key: &Key) -> Option<Value> {
+        self.pairs.get(&key).cloned()
     }
 
     /// add a key-value pair to the storage, return previous value if overwritten
@@ -92,16 +92,16 @@ impl Stack for Stk {
     }
 
     /// get a reference to the top value on the stack 
-    fn top(&self) -> Option<&Value> {
-        self.stack.last()
+    fn top(&self) -> Option<Value> {
+        self.stack.last().cloned()
     }
 
     /// peek at the item at the given index
-    fn peek(&self, idx: usize) -> Option<&Value> {
+    fn peek(&self, idx: usize) -> Option<Value> {
         if idx >= self.stack.len() {
             return None;
         }
-        Some(&self.stack[self.stack.len() - 1 - idx])
+        Some(self.stack[self.stack.len() - 1 - idx].clone())
     }
 
     /// return the number of values on the stack
@@ -137,8 +137,8 @@ fn test_pubkey_lock_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(&Value::Bin(hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap())));
-        assert_eq!(context.pstack.peek(1), Some(&Value::Bin(b"for great justice, move every zig!".to_vec())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap())));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
     }
 
     { // lock
@@ -158,7 +158,7 @@ fn test_pubkey_lock_wast() {
         assert_eq!(2, context.rstack.len());
         // NOTE: the check count is 1 because the check_signature("/tpubkey") failed before the
         // check_signature("/pubkey") succeeded.
-        assert_eq!(context.rstack.top(), Some(&Value::Success(1)));
+        assert_eq!(context.rstack.top(), Some(Value::Success(1)));
     }
 }
 
@@ -184,8 +184,8 @@ fn test_preimage_lock_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(&Value::Bin(b"for great justice, move every zig!".to_vec())));
-        assert_eq!(context.pstack.peek(1), Some(&Value::Bin(b"blah".to_vec())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"blah".to_vec())));
     }
 
     { // lock
@@ -207,7 +207,7 @@ fn test_preimage_lock_wast() {
         assert_eq!(3, context.rstack.len());
         // NOTE: the check count is 2 because the check_signature("/tpubkey") and
         // check_signature("/pubkey") failed before the check_preimage("/hash") succeeded
-        assert_eq!(context.rstack.top(), Some(&Value::Success(2)));
+        assert_eq!(context.rstack.top(), Some(Value::Success(2)));
     }
 }
 
@@ -233,8 +233,8 @@ fn test_pubkey_lock_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(&Value::Bin(hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap())));
-        assert_eq!(context.pstack.peek(1), Some(&Value::Bin(b"for great justice, move every zig!".to_vec())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap())));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
     }
 
     { // lock
@@ -254,7 +254,7 @@ fn test_pubkey_lock_wasm() {
         assert_eq!(2, context.rstack.len());
         // NOTE: the check count is 1 because the check_signature("/tpubkey") failed before the
         // check_signature("/pubkey") succeeded.
-        assert_eq!(context.rstack.top(), Some(&Value::Success(1)));
+        assert_eq!(context.rstack.top(), Some(Value::Success(1)));
     }
 }
 
@@ -280,8 +280,8 @@ fn test_preimage_lock_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(&Value::Bin(b"for great justice, move every zig!".to_vec())));
-        assert_eq!(context.pstack.peek(1), Some(&Value::Bin(b"blah".to_vec())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"blah".to_vec())));
     }
 
     { // lock
@@ -303,6 +303,6 @@ fn test_preimage_lock_wasm() {
         assert_eq!(3, context.rstack.len());
         // NOTE: the check count is 2 because the check_signature("/tpubkey") and
         // check_signature("/pubkey") failed before the check_preimage("/hash") succeeded
-        assert_eq!(context.rstack.top(), Some(&Value::Success(2)));
+        assert_eq!(context.rstack.top(), Some(Value::Success(2)));
     }
 }

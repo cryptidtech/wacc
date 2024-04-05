@@ -11,10 +11,10 @@ pub trait Stack
     fn pop(&mut self) -> Option<Value>;
 
     /// get a reference to the top value on the stack 
-    fn top(&self) -> Option<&Value>;
+    fn top(&self) -> Option<Value>;
 
     /// peek at the item at the given index
-    fn peek(&self, idx: usize) -> Option<&Value>;
+    fn peek(&self, idx: usize) -> Option<Value>;
 
     /// return the number of values on the stack
     fn len(&self) -> usize;

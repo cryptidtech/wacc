@@ -75,8 +75,8 @@ struct Kvp {
 
 impl Pairs for Kvp {
     /// get a value associated with the key
-    fn get(&self, key: &Key) -> Option<&Value> {
-        self.pairs.get(&key)
+    fn get(&self, key: &Key) -> Option<Value> {
+        self.pairs.get(&key).cloned()
     }
 
     /// add a key-value pair to the storage, return previous value if overwritten
@@ -102,16 +102,16 @@ impl Stack for Stk {
     }
 
     /// get a reference to the top value on the stack 
-    fn top(&self) -> Option<&Value> {
-        self.stack.last()
+    fn top(&self) -> Option<Value> {
+        self.stack.last().cloned()
     }
 
     /// peek at the item at the given index
-    fn peek(&self, idx: usize) -> Option<&Value> {
+    fn peek(&self, idx: usize) -> Option<Value> {
         if idx >= self.stack.len() {
             return None;
         }
-        Some(&self.stack[self.stack.len() - 1 - idx])
+        Some(self.stack[self.stack.len() - 1 - idx].clone())
     }
 
     /// return the number of values on the stack
@@ -146,7 +146,7 @@ fn test_preimage_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(1, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(&Value::Str("for great justice, move every zig!".to_string())));
+        assert_eq!(context.pstack.top(), Some(Value::Str("for great justice, move every zig!".to_string())));
     }
 
     { // lock
@@ -165,7 +165,7 @@ fn test_preimage_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(1, context.rstack.len());
-        assert_eq!(context.rstack.top(), Some(&Value::Success(0)));
+        assert_eq!(context.rstack.top(), Some(Value::Success(0)));
     }
 }
 
@@ -190,7 +190,7 @@ fn test_preimage_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(1, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(&Value::Str("for great justice, move every zig!".to_string())));
+        assert_eq!(context.pstack.top(), Some(Value::Str("for great justice, move every zig!".to_string())));
     }
 
     { // lock
@@ -209,6 +209,6 @@ fn test_preimage_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(1, context.rstack.len());
-        assert_eq!(context.rstack.top(), Some(&Value::Success(0)));
+        assert_eq!(context.rstack.top(), Some(Value::Success(0)));
     }
 }
