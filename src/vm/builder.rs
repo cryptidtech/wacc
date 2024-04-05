@@ -47,9 +47,11 @@ impl<'a> Builder<'a>
         config.consume_fuel(self.fuel.is_some());
         let engine = Engine::new(&config).map_err(|e| Error::Wasmtime(e.to_string()))?;
 
+        // try to compile the script
+        let aot = engine.precompile_module(&self.bytes).map_err(|e| Error::Wasmtime(e.to_string()))?;
+
         // configure the module
-        let module =
-            Module::new(&engine, &self.bytes).map_err(|e| Error::Wasmtime(e.to_string()))?;
+        let module = unsafe { Module::deserialize(&engine, &aot).map_err(|e| Error::Wasmtime(e.to_string()))? };
 
         // get the context
         let context = match self.context {

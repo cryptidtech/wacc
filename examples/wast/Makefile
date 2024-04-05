@@ -3,7 +3,7 @@ wasm = $(subst wast,wasm,$(wildcard *.wast))
 all: $(wasm)
 
 %.wasm: %.wast
-	wat2wasm $< -o ../../target/$@
+	wat2wasm --debug-parser $< -o ../../target/$@
 
 clean:
 	for f in $(wasm); do \

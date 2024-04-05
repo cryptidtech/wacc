@@ -45,11 +45,16 @@ fn test_example<'a>(
     };
 
     // construct the instance
-    let mut instance = Builder::new()
+    let mut instance = match Builder::new()
         .with_context(context)
         .with_bytes(&script)
-        .try_build()
-        .unwrap();
+        .try_build() {
+            Ok(i) => i,
+            Err(e) => {
+                println!("builder failed: {}", e.to_string());
+                panic!()
+            }
+        };
 
     // execute the instance
     let result = instance.run(func).unwrap();
