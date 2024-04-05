@@ -54,7 +54,17 @@ fn test_example<'a>(
     // execute the instance
     let result = instance.run(func).unwrap();
 
-    assert_eq!(expected, result);
+    if result != expected {
+        let mut ctx = instance.store.as_context_mut();
+        let context = ctx.data_mut();
+        println!("stack:");
+        println!("\t top --");
+        while let Some(v) = context.rstack.pop() {
+            println!("\t\t{}\n\t     --", v);
+        }
+        panic!();
+    }
+
     instance
 }
 
@@ -124,7 +134,7 @@ fn test_preimage_wast() {
     { // unlock
         // set up the key-value pair store with the preimage data
         let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &"for great justice, move every zig!".as_bytes().into());
+        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &"for great justice, move every zig!".to_string().into());
 
         // load the unlock script
         let script = load_wast("preimage_unlock.wast");
@@ -136,7 +146,7 @@ fn test_preimage_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(1, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(&Value::Bin(b"for great justice, move every zig!".to_vec())));
+        assert_eq!(context.pstack.top(), Some(&Value::Str("for great justice, move every zig!".to_string())));
     }
 
     { // lock
@@ -168,7 +178,7 @@ fn test_preimage_wasm() {
     { // unlock
        // set up the key-value pair store with the preimage data
         let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &"for great justice, move every zig!".as_bytes().into());
+        let _ = kvp_unlock.put(&"/entry/proof".try_into().unwrap(), &"for great justice, move every zig!".to_string().into());
 
         // load the unlock script
         let script = load_wasm("preimage_unlock.wasm");
@@ -180,7 +190,7 @@ fn test_preimage_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(1, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(&Value::Bin(b"for great justice, move every zig!".to_vec())));
+        assert_eq!(context.pstack.top(), Some(&Value::Str("for great justice, move every zig!".to_string())));
     }
 
     { // lock

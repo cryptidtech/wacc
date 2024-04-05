@@ -97,6 +97,13 @@ impl<'a> Context<'_> {
                     }
                     Err(e) => return self.fail(&e.to_string()),
                 },
+                Some(&Value::Str(ref s)) => match mh::Builder::new_from_bytes(hash.codec(), s.as_bytes()) {
+                    Ok(builder) => match builder.try_build() {
+                        Ok(hash) => hash,
+                        Err(e) => return self.fail(&e.to_string()),
+                    }
+                    Err(e) => return self.fail(&e.to_string()),
+                },
                 _ => return self.fail("no multihash data on stack"),
             }
         };
@@ -142,10 +149,11 @@ impl<'a> Context<'_> {
             }
         };
 
-        // peek at the next item down and verify that it is a binary blob message
+        // peek at the next item down and get the message
         let msg = {
             match self.pstack.peek(1) {
                 Some(&Value::Bin(ref v)) => v,
+                Some(&Value::Str(ref s)) => s.as_bytes(),
                 _ => return self.fail("no message on stack"),
             }
         };
