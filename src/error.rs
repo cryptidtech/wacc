@@ -7,9 +7,6 @@ pub enum Error {
     /// Api error
     #[error(transparent)]
     Api(#[from] ApiError),
-    /// Key error 
-    #[error(transparent)]
-    Key(#[from] KeyError),
     /// Vm error
     #[error(transparent)]
     Vm(#[from] VmError),
@@ -54,18 +51,6 @@ pub enum ApiError {
     /// Missing key-value
     #[error("no value associated with key {0}")]
     NoValue(String),
-}
-
-/// Key errors created by this library
-#[derive(Clone, Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum KeyError {
-    /// Empty key string 
-    #[error("the key string is empty")]
-    EmptyKey,
-    /// Missing root key separator
-    #[error("key string doesn't begin with the separator: {0}")]
-    MissingRootSeparator(String),
 }
 
 /// Vm errors created by this library
