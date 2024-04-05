@@ -1,13 +1,10 @@
-/*
-pub(crate) mod check_version;
-pub(crate) mod pop;
-*/
+// SPDX-License-Identifier: FSL-1.1
 pub(crate) mod check_preimage;
 pub(crate) mod check_signature;
 pub(crate) mod log;
 pub(crate) mod push;
 
-use crate::{error::ApiError, Context, Error};
+use crate::{error::ApiError, Context, Error, Key};
 use wasmtime::{Caller, Extern, Linker, Val};
 
 pub const WASM_TRUE: Val = Val::I32(1);
@@ -16,10 +13,6 @@ pub const WASM_FALSE: Val = Val::I32(0);
 /// Add the API functions to the given Linker
 pub(crate) fn add_to_linker<'a>(linker: &mut Linker<Context<'a>>) -> Result<(), Error>
 {
-    /*
-    check_version::add_to_linker(linker)?;
-    pop::add_to_linker(linker)?;
-    */
     check_preimage::add_to_linker(linker)?;
     check_signature::add_to_linker(linker)?;
     log::add_to_linker(linker)?;
@@ -67,4 +60,16 @@ pub(crate) fn get_string<'a, 'b, 'c>(
     };
 
     Ok(s)
+}
+
+/// This function gets a string and tries to construct a Key from it 
+pub(crate) fn get_key<'a, 'b, 'c>(
+    caller: &mut Caller<'a, Context<'b>>,
+    params: &'c [Val],
+) -> Result<Key, Error>
+{
+    match get_string(caller, params) {
+        Ok(s) => Key::try_from(s),
+        Err(e) => Err(e),
+    }
 }

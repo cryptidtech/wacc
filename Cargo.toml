@@ -1,6 +1,6 @@
 [package]
 name = "wacc"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 authors = ["Dave Grantham <dwg@linuxprogrammer.org>"]
 description = "Web assembly cryptographic constructs VM implementation"

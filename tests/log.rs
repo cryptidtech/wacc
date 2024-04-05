@@ -1,5 +1,6 @@
-use std::{collections::HashMap, convert::AsRef, fs::read, path::PathBuf};
-use wacc::{storage::{Pairs, Stack}, vm};
+// SPDX-License-Identifier: FSL-1.1
+use std::{collections::BTreeMap, fs::read, path::PathBuf};
+use wacc::{storage::{Pairs, Stack}, vm::{Builder, Context, Instance, Key, Value}};
 use wasmtime::{AsContextMut, StoreLimitsBuilder};
 
 const MEMORY_LIMIT: usize = 1 << 22; /* 4MB */
@@ -27,9 +28,9 @@ fn test_example<'a>(
     pairs: &'a Kvp,
     pstack: &'a mut Stk,
     rstack: &'a mut Stk,
-) -> vm::Instance<'a> {
+) -> Instance<'a> {
     // build the context
-    let context = vm::Context {
+    let context = Context {
         pairs,
         pstack,
         rstack,
@@ -43,7 +44,7 @@ fn test_example<'a>(
     };
 
     // construct the instance
-    let mut instance = vm::Builder::new()
+    let mut instance = Builder::new()
         .with_context(context)
         .with_bytes(&script)
         .try_build()
@@ -58,44 +59,44 @@ fn test_example<'a>(
 
 #[derive(Default)]
 struct Kvp {
-    pub pairs: HashMap<String, Vec<u8>>,
+    pub pairs: BTreeMap<Key, Value>,
 }
 
 impl Pairs for Kvp {
     /// get a value associated with the key
-    fn get(&self, key: &str) -> Option<Vec<u8>> {
-        self.pairs.get(&key.to_string()).cloned()
+    fn get(&self, key: &Key) -> Option<&Value> {
+        self.pairs.get(&key)
     }
 
     /// add a key-value pair to the storage, return previous value if overwritten
-    fn put(&mut self, key: &str, value: &dyn AsRef<[u8]>) -> Option<Vec<u8>> {
-        self.pairs.insert(key.to_string(), value.as_ref().to_vec())
+    fn put(&mut self, key: &Key, value: &Value) -> Option<Value> {
+        self.pairs.insert(key.clone(), value.clone())
     }
 }
 
 #[derive(Default)]
 struct Stk {
-    pub stack: Vec<vm::Value>
+    pub stack: Vec<Value>
 }
 
 impl Stack for Stk {
     /// push a value onto the stack
-    fn push(&mut self, value: vm::Value) {
+    fn push(&mut self, value: Value) {
         self.stack.push(value);
     }
 
     /// remove the last top value from the stack
-    fn pop(&mut self) -> Option<vm::Value> {
+    fn pop(&mut self) -> Option<Value> {
         self.stack.pop()
     }
 
     /// get a reference to the top value on the stack 
-    fn top(&self) -> Option<&vm::Value> {
+    fn top(&self) -> Option<&Value> {
         self.stack.last()
     }
 
     /// peek at the item at the given index
-    fn peek(&self, idx: usize) -> Option<&vm::Value> {
+    fn peek(&self, idx: usize) -> Option<&Value> {
         if idx >= self.stack.len() {
             return None;
         }
@@ -138,7 +139,7 @@ fn test_invalid_utf8_wast() {
     let context = ctx.data_mut();
     assert_eq!(0, context.pstack.len());
     assert_eq!(1, context.rstack.len());
-    assert_eq!(context.rstack.top(), Some(&vm::Value::Failure("invalid utf-8 sequence of 1 bytes from index 0".to_string())));
+    assert_eq!(context.rstack.top(), Some(&Value::Failure("invalid utf-8 sequence of 1 bytes from index 0".to_string())));
 }
 
 #[test]

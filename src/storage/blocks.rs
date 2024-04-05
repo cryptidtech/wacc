@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: FSL-1.1
 use multicid::Cid;
 
 /// Block storage trait for getting and putting content address data

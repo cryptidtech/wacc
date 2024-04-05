@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: FSL-1.1
 //!
 #![warn(missing_docs)]
 #![allow(dead_code)]
@@ -21,7 +22,7 @@ pub use storage::{Blocks, Pairs, Stack};
 
 /// The virtual machine for executing WACC code
 pub mod vm;
-pub use vm::{Builder, Context, Instance, Value};
+pub use vm::{Builder, Context, Instance, Key, Value};
 
 /// ...and in the darkness bind them
 pub mod prelude {

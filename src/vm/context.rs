@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: FSL-1.1
 use crate::{
     api::{WASM_FALSE, WASM_TRUE},
-    Pairs, Stack, Value,
+    Key, Pairs, Stack, Value,
 };
 use multihash::{mh, Multihash};
 use multikey::{Multikey, Views};
@@ -56,11 +57,11 @@ impl<'a> Context<'_> {
     }
 
     /// Push the value associated with the key onto the parameter stack
-    pub fn push(&mut self, key: &str) -> Val {
+    pub fn push(&mut self, key: &Key) -> Val {
         // try to look up the key-value pair by key and push the result onto the stack
-        match self.pairs.get(&key) {
+        match self.pairs.get(key) {
             Some(v) => {
-                self.pstack.push(v.into()); // pushes Value::Bin(Vec<u8>)
+                self.pstack.push(v.clone()); // pushes Value::Bin(Vec<u8>)
                 WASM_TRUE
             }
             None => self.fail(&format!("kvp missing key: {key}"))
@@ -68,14 +69,15 @@ impl<'a> Context<'_> {
     }
 
     /// Checks the preimage proof against the hash already committed to
-    pub fn check_preimage(&mut self, key: &str) -> Val {
+    pub fn check_preimage(&mut self, key: &Key) -> Val {
         // look up the hash and try to decode it
         let hash = {
             match self.pairs.get(&key) {
-                Some(v) => match Multihash::try_from(v.as_ref()) {
+                Some(&Value::Bin(ref v)) => match Multihash::try_from(v.as_ref()) {
                     Ok(hash) => hash,
                     Err(e) => return self.fail(&e.to_string()),
                 },
+                Some(_) => return self.fail(&format!("unexpected value type associated with {key}")),
                 None => return self.fail(&format!("kvp missing key: {key}")),
             }
         };
@@ -88,7 +90,7 @@ impl<'a> Context<'_> {
         // get the preimage data from the stack
         let preimage = {
             match self.pstack.top() {
-                Some(Value::Bin(v)) => match mh::Builder::new_from_bytes(hash.codec(), v) {
+                Some(&Value::Bin(ref v)) => match mh::Builder::new_from_bytes(hash.codec(), v) {
                     Ok(builder) => match builder.try_build() {
                         Ok(hash) => hash,
                         Err(e) => return self.fail(&e.to_string()),
@@ -111,14 +113,15 @@ impl<'a> Context<'_> {
     }
 
     /// Verifies the digital signature proof with the public key already committed to
-    pub fn check_signature(&mut self, key: &str) -> Val {
+    pub fn check_signature(&mut self, key: &Key) -> Val {
         // look up the hash and try to decode it
         let pubkey = {
-            match self.pairs.get(&key) {
-                Some(v) => match Multikey::try_from(v.as_ref()) {
+            match self.pairs.get(key) {
+                Some(&Value::Bin(ref v)) => match Multikey::try_from(v.as_ref()) {
                     Ok(mk) => mk,
                     Err(e) => return self.fail(&e.to_string()),
                 },
+                Some(_) => return self.fail(&format!("unexpected value type associated with {key}")),
                 None => return self.fail(&format!("no multikey associated with {key}"))
             }
         };
@@ -131,7 +134,7 @@ impl<'a> Context<'_> {
         // peek at the top item and verify that it is a Multisig
         let sig = {
             match self.pstack.top() {
-                Some(Value::Bin(v)) => match Multisig::try_from(v.as_ref()) {
+                Some(&Value::Bin(ref v)) => match Multisig::try_from(v.as_ref()) {
                     Ok(sig) => sig,
                     Err(e) => return self.fail(&e.to_string()),
                 },
@@ -142,7 +145,7 @@ impl<'a> Context<'_> {
         // peek at the next item down and verify that it is a binary blob message
         let msg = {
             match self.pstack.peek(1) {
-                Some(Value::Bin(v)) => v,
+                Some(&Value::Bin(ref v)) => v,
                 _ => return self.fail("no message on stack"),
             }
         };

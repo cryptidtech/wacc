@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: FSL-1.1
 use crate::{vm::Context, Error};
 use wasmtime::{Linker, Module, Store};
 

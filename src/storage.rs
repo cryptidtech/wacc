@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: FSL-1.1
+
 /// The interface to a blockstore
 pub mod blocks;
 

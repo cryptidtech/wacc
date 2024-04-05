@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: FSL-1.1
 use crate::{
     api,
     error::ApiError,
@@ -20,7 +21,7 @@ pub(crate) fn check_preimage<'a, 'b, 'c>(
 ) -> Result<(), wasmtime::Error>
 {
     // get the string parameter
-    let ret = api::get_string(&mut caller, params);
+    let ret = api::get_key(&mut caller, params);
 
     // get the context
     let mut ctx = caller.as_context_mut();
