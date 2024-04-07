@@ -36,6 +36,8 @@ fn test_example<'a>(
         pstack,
         rstack,
         check_count: 0,
+        write_idx: 0,
+        context: "/forks/child/".to_string(),
         log: Vec::default(),
         limiter: StoreLimitsBuilder::new()
             .memory_size(MEMORY_LIMIT)

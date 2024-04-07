@@ -42,6 +42,9 @@ pub enum ApiError {
     /// Incorrect number of params
     #[error("incorrect number of vm function params; expected {0}, received {1}")]
     IncorrectNumberOfParams(usize, usize),
+    /// Incorrect number of results
+    #[error("incorrect number of vm function results; expected {0}, received {1}")]
+    IncorrectNumberOfResults(usize, usize),
     /// Couldn't get the data from the Memory
     #[error("failed to get memory value")]
     MemoryDecodeError,
@@ -51,6 +54,9 @@ pub enum ApiError {
     /// Missing key-value
     #[error("no value associated with key {0}")]
     NoValue(String),
+    /// Memory access error
+    #[error("Memory access error {0}")]
+    MemoryAccess(String),
 }
 
 /// Vm errors created by this library

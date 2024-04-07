@@ -1,3 +1,4 @@
+;; SPDX-License-Identifier: FSL-1.1
 (module
   ;; importing the wacc functions
   (import "wacc" "_check_signature" (func $check_signature (param i32 i32) (result i32)))

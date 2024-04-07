@@ -5,6 +5,7 @@ use wasmtime::{AsContextMut, StoreLimitsBuilder};
 
 const MEMORY_LIMIT: usize = 1 << 22; /* 4MB */
 
+/*
 fn load_wasm(file_name: &str) -> Vec<u8> {
     let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     pb.push("target");
@@ -12,6 +13,7 @@ fn load_wasm(file_name: &str) -> Vec<u8> {
     println!("trying to load: {:?}", pb.as_os_str());
     read(&pb).expect(&format!("Error loading file {file_name}"))
 }
+*/
 
 fn load_wast(file_name: &str) -> Vec<u8> {
     let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -47,26 +49,21 @@ fn test_example<'a>(
     };
 
     // construct the instance
-    let mut instance = Builder::new()
+    let mut instance = match Builder::new()
         .with_context(context)
         .with_bytes(&script)
-        .try_build()
-        .unwrap();
+        .try_build() {
+            Ok(i) => i,
+            Err(e) => {
+                println!("builder failed: {}", e.to_string());
+                panic!()
+            }
+        };
 
     // execute the instance
     let result = instance.run(func).unwrap();
 
-    if result != expected {
-        let mut ctx = instance.store.as_context_mut();
-        let context = ctx.data_mut();
-        println!("stack:");
-        println!("\t top --");
-        while let Some(v) = context.rstack.pop() {
-            println!("\t\t{}\n\t     --", v);
-        }
-        panic!();
-    }
-
+    assert_eq!(expected, result);
     instance
 }
 
@@ -128,18 +125,20 @@ impl Stack for Stk {
 }
 
 #[test]
-fn test_preimage_wast() {
+fn test_branch_lock_wast() {
     // create the stack to use
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
 
     { // unlock
-        // set up the key-value pair store with the preimage data
+        // set up the key-value pair store with the message and signature data
         let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put("/entry/proof", &"for great justice, move every zig!".to_string().into());
+        let _ = kvp_unlock.put("/entry/", &"for great justice, move every zig!".as_bytes().into());
+        let _ = kvp_unlock.put("/entry/proof", &hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap().into());
+        let _ = kvp_unlock.put("/entry/vlad", &hex::decode("073b4839e7a10300010040fd2e2e56b30a70ceb7e8244a77ad83e31b25193cc10b8e7874269f28712cdbda4d97a840acd6dd1a39f9fbcf331c4a7c96cf16445ab13b173119e9cae3eab01c017114405792dad96085b6076b8e4e63b578c90d0336bcaadef4f24704df866149526a1e6d23f89e218ad3f6172a7e26e6e37a3dea728e5f232e41696ad286bcca9201be").unwrap().into());
 
         // load the unlock script
-        let script = load_wast("preimage_unlock.wast");
+        let script = load_wast("fork_unlock.wast");
 
         // run the unlock script to set up the stack
         let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &mut pstack, &mut rstack);
@@ -147,18 +146,20 @@ fn test_preimage_wast() {
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
-        assert_eq!(1, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Str("for great justice, move every zig!".to_string())));
+        assert_eq!(3, context.pstack.len());
+        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("073b4839e7a10300010040fd2e2e56b30a70ceb7e8244a77ad83e31b25193cc10b8e7874269f28712cdbda4d97a840acd6dd1a39f9fbcf331c4a7c96cf16445ab13b173119e9cae3eab01c017114405792dad96085b6076b8e4e63b578c90d0336bcaadef4f24704df866149526a1e6d23f89e218ad3f6172a7e26e6e37a3dea728e5f232e41696ad286bcca9201be").unwrap())));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin(hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap())));
+        assert_eq!(context.pstack.peek(2), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
     }
 
     { // lock
-        // set up the key-value pair store with the sha3 256 hash of the preimage (as serialized
-        // Multihash)
+        // set up the key-value pair store with the encoded Multikey
         let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put("/hash", &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
+        let _ = kvp_lock.put("/forks/child/pubkey", &hex::decode("3aed010874657374206b6579010120de972f8ef7b4056d1f4e55b500945cf0ce04407d391bfa5b62459d90e0e00edb").unwrap().into());
+        let _ = kvp_lock.put("/forks/child/vlad", &hex::decode("073b4839e7a10300010040fd2e2e56b30a70ceb7e8244a77ad83e31b25193cc10b8e7874269f28712cdbda4d97a840acd6dd1a39f9fbcf331c4a7c96cf16445ab13b173119e9cae3eab01c017114405792dad96085b6076b8e4e63b578c90d0336bcaadef4f24704df866149526a1e6d23f89e218ad3f6172a7e26e6e37a3dea728e5f232e41696ad286bcca9201be").unwrap().into());
 
         // load the lock script
-        let script = load_wast("preimage_lock.wast");
+        let script = load_wast("fork_lock.wast");
 
         // run the lock script to check the proof
         let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &mut pstack, &mut rstack);
@@ -166,51 +167,9 @@ fn test_preimage_wast() {
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
-        assert_eq!(1, context.rstack.len());
-        assert_eq!(context.rstack.top(), Some(Value::Success(0)));
-    }
-}
-
-#[test]
-fn test_preimage_wasm() {
-    // create the stack to use
-    let mut pstack = Stk::default();
-    let mut rstack = Stk::default();
-
-    { // unlock
-       // set up the key-value pair store with the preimage data
-        let mut kvp_unlock = Kvp::default();
-        let _ = kvp_unlock.put("/entry/proof", &"for great justice, move every zig!".to_string().into());
-
-        // load the unlock script
-        let script = load_wasm("preimage_unlock.wasm");
-
-        // run the unlock script to set up the stack
-        let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &mut pstack, &mut rstack);
-
-        // check that the stack is what we expect
-        let mut ctx = instance.store.as_context_mut();
-        let context = ctx.data_mut();
-        assert_eq!(1, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Str("for great justice, move every zig!".to_string())));
-    }
-
-    { // lock
-        // set up the key-value pair store with the sha3 256 hash of the preimage (as serialized
-        // Multihash)
-        let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put("/hash", &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
-
-        // load the lock script
-        let script = load_wasm("preimage_lock.wasm");
-
-        // run the lock script to check the proof
-        let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &mut pstack, &mut rstack);
-
-        // check that the stack is what we expect
-        let mut ctx = instance.store.as_context_mut();
-        let context = ctx.data_mut();
-        assert_eq!(1, context.rstack.len());
-        assert_eq!(context.rstack.top(), Some(Value::Success(0)));
+        assert_eq!(3, context.rstack.len());
+        // NOTE: the check count is 1 because the check_signature(branch("pubkey")) failed before the
+        // check_signature(branch("pubkey")) succeeded.
+        assert_eq!(context.rstack.top(), Some(Value::Success(1)));
     }
 }

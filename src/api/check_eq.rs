@@ -9,12 +9,12 @@ use wasmtime::{AsContextMut, Caller, FuncType, Linker, Val, ValType::*};
 pub(crate) fn add_to_linker<'a>(linker: &mut Linker<Context<'a>>) -> Result<(), Error>
 {
     linker
-        .func_new("wacc", "_check_preimage", FuncType::new([I32, I32], [I32]), check_preimage)
+        .func_new("wacc", "_check_eq", FuncType::new([I32, I32], [I32]), check_eq)
         .map_err(|e| ApiError::RegisterApiFailed(e.to_string()))?;
     Ok(())
 }
 
-pub(crate) fn check_preimage<'a, 'b, 'c>(
+pub(crate) fn check_eq<'a, 'b, 'c>(
     mut caller: Caller<'a, Context<'b>>,
     params: &'c [Val],
     results: &mut [Val],
@@ -28,8 +28,8 @@ pub(crate) fn check_preimage<'a, 'b, 'c>(
     let context = ctx.data_mut();
 
     // check the preimage
-    results[0] = match ret {
-        Ok(key) => context.check_preimage(&key),
+    results[0] = match ret{
+        Ok(key) => context.check_eq(&key),
         Err(e) => context.fail(&e.to_string()),
     };
 

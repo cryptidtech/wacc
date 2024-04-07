@@ -117,13 +117,13 @@ impl Stack for Stk {
 }
 
 #[test]
-fn test_log_wast() {
+fn test_branch_wast() {
     let kvp = Kvp::default();
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
-    let script = load_wast("log.wast");
+    let script = load_wast("branch.wast");
     let mut instance = test_example(script, true, &kvp, &mut pstack, &mut rstack);
-    assert_eq!(b"Hello World!\n".to_vec(), instance.log());
+    assert_eq!(b"/forks/child/pubkey\n".to_vec(), instance.log());
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
     assert_eq!(0, context.pstack.len());
@@ -131,27 +131,13 @@ fn test_log_wast() {
 }
 
 #[test]
-fn test_invalid_utf8_wast() {
+fn test_branch_wasm() {
     let kvp = Kvp::default();
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
-    let script = load_wast("invalid_utf8.wast");
-    let mut instance = test_example(script, false, &kvp, &mut pstack, &mut rstack);
-    let mut ctx = instance.store.as_context_mut();
-    let context = ctx.data_mut();
-    assert_eq!(0, context.pstack.len());
-    assert_eq!(1, context.rstack.len());
-    assert_eq!(context.rstack.top(), Some(Value::Failure("invalid utf-8 sequence of 1 bytes from index 0".to_string())));
-}
-
-#[test]
-fn test_log_wasm() {
-    let kvp = Kvp::default();
-    let mut pstack = Stk::default();
-    let mut rstack = Stk::default();
-    let script = load_wasm("log.wasm");
+    let script = load_wasm("branch.wasm");
     let mut instance = test_example(script, true, &kvp, &mut pstack, &mut rstack);
-    assert_eq!(b"Hello World!\n".to_vec(), instance.log());
+    assert_eq!(b"/forks/child/pubkey\n".to_vec(), instance.log());
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
     assert_eq!(0, context.pstack.len());

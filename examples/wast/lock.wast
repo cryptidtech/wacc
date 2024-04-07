@@ -1,3 +1,4 @@
+;; SPDX-License-Identifier: FSL-1.1
 (module
   ;; importing the wacc functions
   (import "wacc" "_check_signature" (func $check_signature (param i32 i32) (result i32)))
@@ -5,9 +6,6 @@
 
   ;; standard lock function
   (func $main (export "move_every_zig") (param) (result i32)
-    ;; check_version returned true so try to verify a threshold signature
-    ;; as the proof
-
     ;; check_signature("/tpubkey")
     i32.const 0
     i32.const 8
@@ -62,5 +60,5 @@
   ;;                    [NAME]          [IDX] [LEN]
   (data (i32.const  0)  "/tpubkey" )  ;;    0     8
   (data (i32.const  8)  "/pubkey"  )  ;;    8     7
-  (data (i32.const 15)  "/hash"    )  ;;   15     4
+  (data (i32.const 15)  "/hash"    )  ;;   15     5
 )

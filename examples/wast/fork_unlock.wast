@@ -3,7 +3,7 @@
   ;; importing the wacc push functions
   (import "wacc" "_push" (func $push (param i32 i32) (result i32)))
 
-  ;; function to provide a solution for a pubkey signature lock
+  ;; standard unlock function
   (func $main (export "for_great_justice") (param) (result i32)
     ;; "/entry/"
     i32.const 0
@@ -15,6 +15,11 @@
     i32.const 12
     call $push
 
+    ;; "/entry/vlad"
+    i32.const 19
+    i32.const 11
+    call $push
+
     return
   )
 
@@ -23,7 +28,8 @@
 
   ;; String constants for referenceing key-value pairs
   ;;
-  ;;                   [NAME]                 [IDX] [LEN]
-  (data (i32.const  0) "/entry/"       )  ;;     0     7
+  ;;                   [NAME]                [IDX]  [LEN]
+  (data (i32.const  0) "/entry/"       )  ;;     0      7
   (data (i32.const  7) "/entry/proof"  )  ;;     7     12
+  (data (i32.const 19) "/entry/vlad"   )  ;;    19     11
 )

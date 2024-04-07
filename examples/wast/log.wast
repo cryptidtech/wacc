@@ -1,3 +1,4 @@
+;; SPDX-License-Identifier: FSL-1.1
 (module
     ;; importing the wac logging function
     (import "wacc" "_log" (func $log (param i32 i32) (result i32)))

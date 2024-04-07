@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: FSL-1.1
+pub(crate) mod branch;
+pub(crate) mod check_eq;
 pub(crate) mod check_preimage;
 pub(crate) mod check_signature;
 pub(crate) mod log;
 pub(crate) mod push;
 
 use crate::{error::ApiError, Context, Error};
-use wasmtime::{Caller, Extern, Linker, Val};
+use wasmtime::{AsContextMut, Caller, Extern, Linker, Val};
 
 pub const WASM_TRUE: Val = Val::I32(1);
 pub const WASM_FALSE: Val = Val::I32(0);
@@ -13,6 +15,8 @@ pub const WASM_FALSE: Val = Val::I32(0);
 /// Add the API functions to the given Linker
 pub(crate) fn add_to_linker<'a>(linker: &mut Linker<Context<'a>>) -> Result<(), Error>
 {
+    branch::add_to_linker(linker)?;
+    check_eq::add_to_linker(linker)?;
     check_preimage::add_to_linker(linker)?;
     check_signature::add_to_linker(linker)?;
     log::add_to_linker(linker)?;
@@ -60,4 +64,45 @@ pub(crate) fn get_string<'a, 'b, 'c>(
     };
 
     Ok(s)
+}
+
+/// This function takes 
+pub(crate) fn put_string<'a, 'b>(
+    caller: &mut Caller<'a, Context<'b>>,
+    s: &str,
+    results: &mut [Val],
+) -> Result<(), Error>
+{
+    // make sure we have enough params
+    if results.len() < 2 {
+        return Err(ApiError::IncorrectNumberOfResults(2, results.len()).into());
+    }
+
+    // get the mem
+    let mem = match caller.get_export("memory") {
+        Some(Extern::Memory(mem)) => mem,
+        _ => return Err(ApiError::MissingExport("memory".to_string()).into()),
+    };
+
+    // get the size
+    let size = mem.data_size(&caller);
+
+    let write_idx = {
+        // get the context
+        let mut ctx = caller.as_context_mut();
+        let context = ctx.data_mut();
+
+        // increment the write idx
+        context.write_idx += s.as_bytes().len();
+
+        // calculate the linear memory write index
+        size - context.write_idx - 1
+    };
+
+    // put the offest and length on the stack
+    results[0] = Val::I32(write_idx as i32);
+    results[1] = Val::I32(s.as_bytes().len() as i32);
+
+    // write the string into linear memory
+    mem.write(caller, write_idx, s.as_bytes()).map_err(|e| ApiError::MemoryAccess(e.to_string()).into())
 }

@@ -1,3 +1,4 @@
+;; SPDX-License-Identifier: FSL-1.1
 (module
   ;; importing the wacc push functions
   (import "wacc" "_push" (func $push (param i32 i32) (result i32)))
