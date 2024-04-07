@@ -1,4 +1,5 @@
 [![Functional Source License 1.1](https://img.shields.io/badge/License-Functional_Source_1.1-red)][FSL]
+![Rust Build](https://github.com/cryptidtech/wacc/actions/workflows/rust.yml/badge.svg)
 
 # Web Assembly Cryptographic Constructs (WACC) VM
 
