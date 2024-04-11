@@ -3,6 +3,9 @@
 /// virtual machine builder
 pub mod builder;
 
+/// wasm code compiler
+pub mod compiler;
+
 /// virtual machine execution context
 pub mod context;
 
@@ -13,6 +16,7 @@ pub mod instance;
 pub mod value;
 
 pub use builder::Builder;
+pub use compiler::Compiler;
 pub use context::Context;
 pub use instance::Instance;
 pub use value::Value;
