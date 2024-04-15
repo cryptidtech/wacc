@@ -4,15 +4,15 @@ use crate::{
     error::ApiError,
     Context, Error,
 };
-use wasmtime::{AsContextMut, Caller, FuncType, Linker, Val, ValType::*};
+use wasmtime::{AsContextMut, Caller, Engine, FuncType, Linker, Val, ValType::*};
 
-pub(crate) fn add_to_linker<'a>(linker: &mut Linker<Context<'a>>) -> Result<(), Error>
+pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>>) -> Result<(), Error>
 {
     linker
         .func_new(
             "wacc",
             "_check_signature",
-            FuncType::new([I32, I32], [I32]),
+            FuncType::new(engine, [I32, I32], [I32]),
             check_signature,
         )
         .map_err(|e| ApiError::RegisterApiFailed(e.to_string()))?;

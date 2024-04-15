@@ -74,7 +74,7 @@ impl<'a> Builder<'a>
         let mut linker = Linker::new(&engine);
 
         // add the Wacc functions
-        api::add_to_linker(&mut linker)?;
+        api::add_to_linker(&engine, &mut linker)?;
 
         // build the instance
         Ok(Instance {

@@ -7,20 +7,20 @@ pub(crate) mod log;
 pub(crate) mod push;
 
 use crate::{error::ApiError, Context, Error};
-use wasmtime::{AsContextMut, Caller, Extern, Linker, Val};
+use wasmtime::{AsContextMut, Caller, Engine, Extern, Linker, Val};
 
 pub const WASM_TRUE: Val = Val::I32(1);
 pub const WASM_FALSE: Val = Val::I32(0);
 
 /// Add the API functions to the given Linker
-pub(crate) fn add_to_linker<'a>(linker: &mut Linker<Context<'a>>) -> Result<(), Error>
+pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>>) -> Result<(), Error>
 {
-    branch::add_to_linker(linker)?;
-    check_eq::add_to_linker(linker)?;
-    check_preimage::add_to_linker(linker)?;
-    check_signature::add_to_linker(linker)?;
-    log::add_to_linker(linker)?;
-    push::add_to_linker(linker)?;
+    branch::add_to_linker(engine, linker)?;
+    check_eq::add_to_linker(engine, linker)?;
+    check_preimage::add_to_linker(engine, linker)?;
+    check_signature::add_to_linker(engine, linker)?;
+    log::add_to_linker(engine, linker)?;
+    push::add_to_linker(engine, linker)?;
     Ok(())
 }
 
