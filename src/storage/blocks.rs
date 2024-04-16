@@ -10,6 +10,6 @@ pub trait Blocks {
     fn get(&self, cid: &Cid) -> Result<Vec<u8>, Self::Error>;
 
     /// Try to put a block and get back its content address
-    fn put<F: FnMut(&dyn AsRef<[u8]>) -> Result<Cid, Self::Error>>(
+    fn put<F: Fn(&dyn AsRef<[u8]>) -> Result<Cid, Self::Error>>(
         &mut self, data: &dyn AsRef<[u8]>, gen_cid: F) -> Result<Cid, Self::Error>;
 }
