@@ -7,7 +7,7 @@ pub trait Blocks {
     type Error;
 
     /// Try to get a block from it's content address
-    fn get(&self, cid: &Cid) -> Option<Vec<u8>>;
+    fn get(&self, cid: &Cid) -> Result<Vec<u8>, Self::Error>;
 
     /// Try to put a block and get back its content address
     fn put<F: FnMut(&dyn AsRef<[u8]>) -> Result<Cid, Self::Error>>(
