@@ -129,7 +129,7 @@ fn test_pubkeysig_wast() {
 
         // NOTE: this is an example of a signed string message
         let _ = kvp_unlock.put("/entry/", &"for great justice, move every zig!".to_string().into());
-        let _ = kvp_unlock.put("/entry/proof", &hex::decode("39eda1030001004033a3f4e64b31ef09956fe411ba9ab6de20a31f3384ce1599dec24eb3eb0a7d4fa83d1def1294828b5bdebdb871f8a55a4eaf1983a4f48cfe51fa15a1ecadf006").unwrap().into());
+        let _ = kvp_unlock.put("/entry/proof", &hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap().into());
 
         // load the unlock script
         let script = load_wast("pubkeysig_unlock.wast");
@@ -141,14 +141,14 @@ fn test_pubkeysig_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("39eda1030001004033a3f4e64b31ef09956fe411ba9ab6de20a31f3384ce1599dec24eb3eb0a7d4fa83d1def1294828b5bdebdb871f8a55a4eaf1983a4f48cfe51fa15a1ecadf006").unwrap())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap())));
         assert_eq!(context.pstack.peek(1), Some(Value::Str("for great justice, move every zig!".to_string())))
     }
 
     { // lock
         // set up the key-value pair store with the encoded Multikey
         let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put("/pubkey", &hex::decode("3aed010874657374206b6579010120fee578e370fc6a13bb4965e2be36edbba62e9300a53fca73b01ab373cffd6eba").unwrap().into());
+        let _ = kvp_lock.put("/pubkey", &hex::decode("3aed010874657374206b657901012084d515ef051e07d597f3c14ac09e5a9d5012c659c196d96db5c6b98ea552f603").unwrap().into());
 
         // load the lock script
         let script = load_wast("pubkeysig_lock.wast");
@@ -176,7 +176,7 @@ fn test_pubkeysig_wasm() {
 
         // NOTE: this is an example of a signed binary message
         let _ = kvp_unlock.put("/entry/", &"for great justice, move every zig!".as_bytes().into());
-        let _ = kvp_unlock.put("/entry/proof", &hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap().into());
+        let _ = kvp_unlock.put("/entry/proof", &hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap().into());
 
         // load the unlock script
         let script = load_wasm("pubkeysig_unlock.wasm");
@@ -188,14 +188,14 @@ fn test_pubkeysig_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("39eda10300010040d31e5f6f57e01e638b8f6f0b3b560b808dea0700435044077c2a88b95e733490dd53f1b64ca68595795685541ca7b455c5b480c281ea5e35a0d3fc8645e08a07").unwrap())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap())));
         assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
     }
 
     { // lock
         // set up the key-value pair store with the encoded Multikey
         let mut kvp_lock = Kvp::default();
-        let _ = kvp_lock.put("/pubkey", &hex::decode("3aed010874657374206b6579010120de972f8ef7b4056d1f4e55b500945cf0ce04407d391bfa5b62459d90e0e00edb").unwrap().into());
+        let _ = kvp_lock.put("/pubkey", &hex::decode("3aed010874657374206b657901012084d515ef051e07d597f3c14ac09e5a9d5012c659c196d96db5c6b98ea552f603").unwrap().into());
 
         // load the lock script
         let script = load_wasm("pubkeysig_lock.wasm");
