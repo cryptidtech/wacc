@@ -18,7 +18,7 @@ pub use error::Error;
 
 /// Storage traits
 pub mod storage;
-pub use storage::{Blocks, Pairs, Stack};
+pub use storage::{Pairs, Stack};
 
 /// The virtual machine for executing WACC code
 pub mod vm;
