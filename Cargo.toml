@@ -1,6 +1,6 @@
 [package]
 name = "wacc"
-version = "1.0.3"
+version = "1.0.4"
 edition = "2021"
 authors = ["Dave Grantham <dwg@linuxprogrammer.org>"]
 description = "Web assembly cryptographic constructs VM implementation"
@@ -15,7 +15,9 @@ multikey = { version = "1.0", git = "https://github.com/cryptidtech/multikey.git
 multisig = { version = "1.0", git = "https://github.com/cryptidtech/multisig.git" }
 multitrait = { version = "1.0", git = "https://github.com/cryptidtech/multitrait.git" }
 multiutil = { version = "1.0", git = "https://github.com/cryptidtech/multiutil.git" }
+test-log = { version = "0.2.16", features = ["trace", "color"] }
 thiserror = "1.0"
+tracing = "0.1.40"
 wasmtime = "19.0"
 
 [dev-dependencies]

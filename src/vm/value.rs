@@ -2,25 +2,35 @@
 use std::fmt;
 
 /// The values that can be pushed onto the stack
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Value {
-    /// A binary blob on the stack
-    Bin(Vec<u8>),
-    /// A printable string value
-    Str(String),
+    /// A binary blob value with debugging hint
+    Bin {
+        /// Arbitrary description of the data for debugging purposes
+        hint: String,
+        /// Binary value data
+        data: Vec<u8>
+    },
+    /// A printable string value with debugging hint
+    Str {
+        /// Arbitrary description of the data for debugging purposes
+        hint: String,
+        /// String value data
+        data: String
+    },
     /// Sucess marker
     Success(usize),
     /// Failure marker
     Failure(String),
 }
 
-impl fmt::Display for Value {
+impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Value::Bin(b) => write!(f, "Bin({} bytes)", b.len()),
-            Value::Str(s) => write!(f, "Str(\"{}\")", s),
+            Value::Bin { hint, data } => write!(f, "Bin(\"{}\": {} bytes)", hint, data.len()),
+            Value::Str { hint, data } => write!(f, "Str(\"{}\": {} bytes)", hint, data.len()),
             Value::Success(n) => write!(f, "Success({})", n),
-            Value::Failure(e) => write!(f, "Failure({})", e),
+            Value::Failure(e) => write!(f, "Failure(\"{}\")", e),
         }
     }
 }
@@ -28,14 +38,17 @@ impl fmt::Display for Value {
 impl From<&[u8]> for Value 
 {
     fn from(b: &[u8]) -> Self {
-        Value::Bin(b.to_vec())
+        Value::from(b.to_vec())
     }
 }
 
 impl From<Vec<u8>> for Value 
 {
     fn from(b: Vec<u8>) -> Self {
-        Value::Bin(b)
+        Value::Bin {
+            hint: "".to_string(),
+            data: b
+        }
     }
 }
 
@@ -47,7 +60,10 @@ impl From<&str> for Value {
 
 impl From<String> for Value {
     fn from(s: String) -> Self {
-        Value::Str(s)
+        Value::Str { 
+            hint: "".to_string(),
+            data: s
+        }
     }
 }
 
@@ -64,7 +80,13 @@ mod tests {
     #[test]
     fn test_string_value() {
         let v: Value = "foo".into();
-        assert_eq!(Value::Str("foo".to_string()), v);
+        assert_eq!(
+            Value::Str {
+                hint: "".to_string(),
+                data: "foo".to_string()
+            }, 
+            v
+        );
     }
 
     #[test]

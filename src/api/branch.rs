@@ -28,8 +28,8 @@ pub(crate) fn branch<'a, 'b, 'c>(
         let mut ctx = caller.as_context_mut();
         let context = ctx.data_mut();
 
-        // check the preimage
-        match ret{
+        // get the full key given the context
+        match ret {
             Ok(key) => context.branch(&key),
             Err(e) => {
                 context.fail(&e.to_string());

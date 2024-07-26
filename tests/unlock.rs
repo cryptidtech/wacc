@@ -133,8 +133,8 @@ fn test_unlock_wast() {
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
     assert_eq!(2, context.pstack.len());
-    assert_eq!(context.pstack.top(), Some(Value::Bin(b"bar".to_vec())));
-    assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"foo".to_vec())));
+    assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: b"bar".to_vec() }));
+    assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"foo".to_vec() }));
     assert_eq!(0, context.rstack.len());
 }
 
@@ -155,7 +155,7 @@ fn test_unlock_wasm() {
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
     assert_eq!(2, context.pstack.len());
-    assert_eq!(context.pstack.top(), Some(Value::Bin(b"bar".to_vec())));
-    assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"foo".to_vec())));
+    assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: b"bar".to_vec() }));
+    assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"foo".to_vec() }));
     assert_eq!(0, context.rstack.len());
 }

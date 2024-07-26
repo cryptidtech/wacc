@@ -141,8 +141,8 @@ fn test_pubkeysig_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap())));
-        assert_eq!(context.pstack.peek(1), Some(Value::Str("for great justice, move every zig!".to_string())))
+        assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap() }));
+        assert_eq!(context.pstack.peek(1), Some(Value::Str { hint: "".to_string(), data: "for great justice, move every zig!".to_string() }))
     }
 
     { // lock
@@ -188,8 +188,8 @@ fn test_pubkeysig_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap())));
-        assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap() }));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"for great justice, move every zig!".to_vec() }));
     }
 
     { // lock

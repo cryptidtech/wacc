@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: FSL-1.1
+use test_log::test;
+use tracing::{info, span, Level};
 use std::{collections::BTreeMap, fs::read, path::PathBuf};
 use wacc::{storage::{Pairs, Stack}, vm::{Builder, Context, Instance, Value}};
 use wasmtime::{AsContextMut, StoreLimitsBuilder};
@@ -9,7 +11,7 @@ fn load_wasm(file_name: &str) -> Vec<u8> {
     let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     pb.push("target");
     pb.push(file_name);
-    println!("trying to load: {:?}", pb.as_os_str());
+    info!("trying to load: {:?}", pb.as_os_str());
     read(&pb).expect(&format!("Error loading file {file_name}"))
 }
 
@@ -18,7 +20,7 @@ fn load_wast(file_name: &str) -> Vec<u8> {
     pb.push("examples");
     pb.push("wast");
     pb.push(file_name);
-    println!("trying to load: {:?}", pb.as_os_str());
+    info!("trying to load: {:?}", pb.as_os_str());
     read(&pb).expect(&format!("Error loading file {file_name}"))
 }
 
@@ -124,6 +126,7 @@ impl Stack for Stk {
 
 #[test]
 fn test_pubkey_lock_wast() {
+    let _span_ = span!(Level::INFO, "test_pubkey_lock_wast").entered();
     // create the stack to use
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
@@ -144,8 +147,8 @@ fn test_pubkey_lock_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap())));
-        assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap() }));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"for great justice, move every zig!".to_vec() }));
     }
 
     { // lock
@@ -191,8 +194,8 @@ fn test_preimage_lock_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
-        assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"blah".to_vec())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: b"for great justice, move every zig!".to_vec() }));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"blah".to_vec() }));
     }
 
     { // lock
@@ -240,8 +243,8 @@ fn test_pubkey_lock_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Bin(hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap())));
-        assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap() }));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"for great justice, move every zig!".to_vec() }));
     }
 
     { // lock
@@ -287,8 +290,8 @@ fn test_preimage_lock_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(2, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Bin(b"for great justice, move every zig!".to_vec())));
-        assert_eq!(context.pstack.peek(1), Some(Value::Bin(b"blah".to_vec())));
+        assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: b"for great justice, move every zig!".to_vec() }));
+        assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"blah".to_vec() }));
     }
 
     { // lock

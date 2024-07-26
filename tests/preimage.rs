@@ -62,7 +62,7 @@ fn test_example<'a>(
         println!("stack:");
         println!("\t top --");
         while let Some(v) = context.rstack.pop() {
-            println!("\t\t{}\n\t     --", v);
+            println!("\t\t{:?}\n\t     --", v);
         }
         panic!();
     }
@@ -148,7 +148,7 @@ fn test_preimage_wast() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(1, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Str("for great justice, move every zig!".to_string())));
+        assert_eq!(context.pstack.top(), Some(Value::Str { hint: "".to_string(), data: "for great justice, move every zig!".to_string() }));
     }
 
     { // lock
@@ -192,7 +192,7 @@ fn test_preimage_wasm() {
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
         assert_eq!(1, context.pstack.len());
-        assert_eq!(context.pstack.top(), Some(Value::Str("for great justice, move every zig!".to_string())));
+        assert_eq!(context.pstack.top(), Some(Value::Str { hint: "".to_string(), data: "for great justice, move every zig!".to_string() }));
     }
 
     { // lock
