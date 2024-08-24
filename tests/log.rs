@@ -25,13 +25,15 @@ fn load_wast(file_name: &str) -> Vec<u8> {
 fn test_example<'a>(
     script: Vec<u8>,
     expected: bool,
-    pairs: &'a Kvp,
+    current: &'a Kvp,
+    proposed: &'a Kvp,
     pstack: &'a mut Stk,
     rstack: &'a mut Stk,
 ) -> Instance<'a> {
     // build the context
     let context = Context {
-        pairs,
+        current,
+        proposed,
         pstack,
         rstack,
         check_count: 0,
@@ -122,7 +124,7 @@ fn test_log_wast() {
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
     let script = load_wast("log.wast");
-    let mut instance = test_example(script, true, &kvp, &mut pstack, &mut rstack);
+    let mut instance = test_example(script, true, &kvp, &kvp, &mut pstack, &mut rstack);
     assert_eq!(b"Hello World!\n".to_vec(), instance.log());
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
@@ -136,7 +138,7 @@ fn test_invalid_utf8_wast() {
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
     let script = load_wast("invalid_utf8.wast");
-    let mut instance = test_example(script, false, &kvp, &mut pstack, &mut rstack);
+    let mut instance = test_example(script, false, &kvp, &kvp, &mut pstack, &mut rstack);
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
     assert_eq!(0, context.pstack.len());
@@ -150,7 +152,7 @@ fn test_log_wasm() {
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
     let script = load_wasm("log.wasm");
-    let mut instance = test_example(script, true, &kvp, &mut pstack, &mut rstack);
+    let mut instance = test_example(script, true, &kvp, &kvp, &mut pstack, &mut rstack);
     assert_eq!(b"Hello World!\n".to_vec(), instance.log());
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();

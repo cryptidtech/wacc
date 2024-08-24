@@ -4,6 +4,7 @@ use crate::{
     error::ApiError,
     Context, Error,
 };
+use log::info;
 use wasmtime::{AsContextMut, Caller, Engine, FuncType, Linker, Val, ValType::*};
 
 pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>>) -> Result<(), Error>
@@ -12,7 +13,7 @@ pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>
         .func_new(
             "wacc",
             "_check_signature",
-            FuncType::new(engine, [I32, I32], [I32]),
+            FuncType::new(engine, [I32, I32, I32, I32], [I32]),
             check_signature,
         )
         .map_err(|e| ApiError::RegisterApiFailed(e.to_string()))?;
@@ -25,18 +26,44 @@ pub(crate) fn check_signature<'a, 'b, 'c>(
     results: &mut [Val],
 ) -> Result<(), wasmtime::Error>
 {
-    // get the string parameter
-    let ret = api::get_string(&mut caller, params);
+    // check preconditions
+    if params.len() != 4 {
+        let mut ctx = caller.as_context_mut();
+        let context = ctx.data_mut();
+        results[0] = context.fail(&format!("check_signature requires two string parameters"));
+        return Ok(())
+    }
 
-    // get the context
+    // get the index and length of the pubkey and message key-path strings
+    let (k, m) = params.split_at(2);
+    info!("check_signature: {k:?}, {m:?}");
+
+    // get the key-path string for the public key
+    let key = match api::get_string(&mut caller, k) {
+        Ok(kp) => kp,
+        Err(e) => {
+            let mut ctx = caller.as_context_mut();
+            let context = ctx.data_mut();
+            results[0] = context.fail(&e.to_string());
+            return Ok(());
+        }
+    };
+
+    // get the key-path string for the message
+    let msg = match api::get_string(&mut caller, m) {
+        Ok(msg) => msg,
+        Err(e) => {
+            let mut ctx = caller.as_context_mut();
+            let context = ctx.data_mut();
+            results[0] = context.fail(&e.to_string());
+            return Ok(());
+        }
+    };
+
+    // check the digital signature over the message
     let mut ctx = caller.as_context_mut();
     let context = ctx.data_mut();
-
-    // check the preimage
-    results[0] = match ret {
-        Ok(key) => context.check_signature(&key),
-        Err(e) => context.fail(&e.to_string()),
-    };
+    results[0] = context.check_signature(&key, &msg);
 
     Ok(())
 }

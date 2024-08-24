@@ -3,7 +3,7 @@ use crate::{
     api::{WASM_FALSE, WASM_TRUE},
     Pairs, Stack, Value,
 };
-use tracing::info;
+use log::info;
 use multihash::{mh, Multihash};
 use multikey::{Multikey, Views};
 use multisig::Multisig;
@@ -14,8 +14,10 @@ use wasmtime::{StoreLimits, Val};
 /// Represents the application state for each instance of a WACC execution.
 pub struct Context<'a>
 {
-    /// The key-value store
-    pub pairs: &'a dyn Pairs,
+    /// The key-value store of the current state
+    pub current: &'a dyn Pairs,
+    /// The key-value store of the proposed state update
+    pub proposed: &'a dyn Pairs,
     /// The stack of values
     pub pstack: &'a mut dyn Stack,
     /// The stack of return values
@@ -76,9 +78,8 @@ impl<'a> Context<'_> {
     /// Push the value associated with the key onto the parameter stack
     pub fn push(&mut self, key: &str) -> Val {
         // try to look up the key-value pair by key and push the result onto the stack
-        match self.pairs.get(key) {
+        match self.current.get(key) {
             Some(v) => {
-                info!("push: {} -> {:?}", key, v);
                 self.pstack.push(v.clone()); // pushes Value::Bin(Vec<u8>)
                 WASM_TRUE
             }
@@ -94,22 +95,23 @@ impl<'a> Context<'_> {
         }
 
         // pop the value from the stack
-        let v = self.pstack.pop();
-        info!("pop: {:?}", v);
+        let _ = self.pstack.pop();
         WASM_TRUE
     }
 
     /// Calculate the full key given the context
     pub fn branch(&self, key: &str) -> String {
-        format!("{}{}", self.context, key)
+        let s = format!("{}{}", self.context, key);
+        info!("branch({}) -> {}", key, s.as_str());
+        s
     }
 
     /// Verifies the top of the stack matches the value associated with the key
-    #[tracing::instrument]
     pub fn check_eq(&mut self, key: &str) -> Val {
+        info!("check_eq: loading from current {key}");
         // look up the value
         let value = {
-            match self.pairs.get(key) {
+            match self.current.get(key) {
                 Some(v @ Value::Bin { .. }) => v,
                 Some(v @ Value::Str { .. }) => v,
                 Some(_) => return self.check_fail(&format!("unexpected value type associated with {key}")),
@@ -123,6 +125,7 @@ impl<'a> Context<'_> {
         }
 
         // peek at the top item
+        info!("check_eq: loading value from stack");
         let stack_value = {
             match self.pstack.top() {
                 Some(v @ Value::Bin { .. }) => v,
@@ -133,21 +136,22 @@ impl<'a> Context<'_> {
 
         // check that the values
         if value == stack_value {
+            info!("check_eq({key}) -> {value:?} == {stack_value:?} -> true");
             // the eq check passed so pop the argument from the stack
             let _ = self.pstack.pop();
             self.succeed()
         } else {
+            info!("check_eq({key}) -> {value:?} == {stack_value:?} -> false");
             // the hashes don't match
             self.check_fail("values don't match")
         }
     }
 
     /// Checks the preimage proof against the hash already committed to
-    #[tracing::instrument]
     pub fn check_preimage(&mut self, key: &str) -> Val {
         // look up the hash and try to decode it
         let hash = {
-            match self.pairs.get(&key) {
+            match self.current.get(&key) {
                 Some(Value::Bin { hint: _, data }) => match Multihash::try_from(data.as_ref()) {
                     Ok(hash) => hash,
                     Err(e) => return self.check_fail(&e.to_string()),
@@ -187,22 +191,23 @@ impl<'a> Context<'_> {
 
         // check that the hashes match
         if hash == preimage {
+            info!("check_preimage({key}) -> true");
             // the hash check passed so pop the argument from the stack
             let _ = self.pstack.pop();
             self.succeed()
         } else {
+            info!("check_preimage({key}) -> false");
             // the hashes don't match
             self.check_fail("preimage doesn't match")
         }
     }
 
-    /// Verifies the digital signature proof with the public key already committed to
-    #[tracing::instrument]
-    pub fn check_signature(&mut self, key: &str) -> Val {
+    /// Verifies the digital signature proof with the public key and message already committed to
+    pub fn check_signature(&mut self, key: &str, msg: &str) -> Val {
+        info!("check_signature: loading from current {key}");
         // look up the pubkey and try to decode it
         let pubkey = {
-            info!(key, "pubkey: pairs::get()");
-            match self.pairs.get(key) {
+            match self.current.get(key) {
                 Some(Value::Bin { hint:_, data }) => match Multikey::try_from(data.as_ref()) {
                     Ok(mk) => mk,
                     Err(e) => return self.check_fail(&e.to_string()),
@@ -212,16 +217,27 @@ impl<'a> Context<'_> {
             }
         };
 
-        // make sure we have at least two parameters on the stack
-        if self.pstack.len() < 2 {
+        // look up the message that was signed
+        info!("check_signature: loading from proposed {msg}");
+        let message = {
+            match self.proposed.get(msg) {
+                Some(Value::Bin { hint:_, data }) => data,
+                Some(Value::Str { hint: _, data }) => data.as_bytes().to_vec(),
+                Some(_) => return self.check_fail(&format!("unexpected value type associated with {msg}")),
+                None => return self.check_fail(&format!("no message associated with {msg}"))
+            }
+        };
+
+        // make sure we have at least one parameters on the stack
+        if self.pstack.len() < 1 {
             return self.check_fail(
-                &format!("not enough parameters on the stack for check_signature ({})", self.pstack.len())
+                &format!("not enough parameters ({}) on the stack for check_signature ({key}, {msg})", self.pstack.len())
             );
         }
 
         // peek at the top item and verify that it is a Multisig
+        info!("check_signature: loading sig from stack");
         let sig = {
-            info!("sig: stack::top()");
             match self.pstack.top() {
                 Some(Value::Bin { hint: _, data }) => match Multisig::try_from(data.as_ref()) {
                     Ok(sig) => sig,
@@ -231,34 +247,22 @@ impl<'a> Context<'_> {
             }
         };
 
-        // peek at the next item down and get the message
-        let msg = {
-            info!("msg: stack::peek(1)");
-            match self.pstack.peek(1) {
-                Some(Value::Bin { hint: _, data }) => data,
-                Some(Value::Str { hint: _, data }) => data.as_bytes().to_vec(),
-                _ => return self.check_fail("no message on stack"),
-            }
-        };
-
-        // get the verify view
         let verify_view = match pubkey.verify_view() {
             Ok(v) => v,
             Err(e) => return self.check_fail(&e.to_string()),
         };
 
         // verify the signature
-        match verify_view.verify(&sig, Some(msg.as_ref())) {
+        match verify_view.verify(&sig, Some(message.as_ref())) {
             Ok(_) => {
-                info!("verify: OK");
-                // the signature verification worked so pop the two arguments off
+                info!("check_signature({key}, {msg}) -> true");
+                // the signature verification worked so pop the signature argument off
                 // of the stack before continuing
-                self.pstack.pop();
                 self.pstack.pop();
                 self.succeed()
             }
             Err(e) => {
-                info!("verify: Err({})", e.to_string());
+                info!("check_signature({key}, {msg}) -> false");
                 self.check_fail(&e.to_string())
             }
         }

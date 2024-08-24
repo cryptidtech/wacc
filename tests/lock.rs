@@ -28,13 +28,15 @@ fn test_example<'a>(
     script: Vec<u8>,
     func: &str,
     expected: bool,
-    pairs: &'a Kvp,
+    current: &'a Kvp,
+    proposed: &'a Kvp,
     pstack: &'a mut Stk,
     rstack: &'a mut Stk,
 ) -> Instance<'a> {
     // build the context
     let context = Context {
-        pairs,
+        current,
+        proposed,
         pstack,
         rstack,
         check_count: 0,
@@ -130,10 +132,13 @@ fn test_pubkey_lock_wast() {
     // create the stack to use
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
+    // the key-value pair store with the message and signature data
+    let mut kvp_unlock = Kvp::default();
+    // the key-value pair store with the encoded Multikey
+    let mut kvp_lock = Kvp::default();
 
     { // unlock
         // set up the key-value pair store with the message and signature data
-        let mut kvp_unlock = Kvp::default();
         let _ = kvp_unlock.put("/entry/", &"for great justice, move every zig!".as_bytes().into());
         let _ = kvp_unlock.put("/entry/proof", &hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap().into());
 
@@ -141,26 +146,24 @@ fn test_pubkey_lock_wast() {
         let script = load_wast("unlock.wast");
 
         // run the unlock script to set up the stack
-        let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &mut pstack, &mut rstack);
+        let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &kvp_unlock, &mut pstack, &mut rstack);
 
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
-        assert_eq!(2, context.pstack.len());
+        assert_eq!(1, context.pstack.len());
         assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap() }));
-        assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"for great justice, move every zig!".to_vec() }));
     }
 
     { // lock
         // set up the key-value pair store with the encoded Multikey
-        let mut kvp_lock = Kvp::default();
         let _ = kvp_lock.put("/pubkey", &hex::decode("3aed010874657374206b657901012084d515ef051e07d597f3c14ac09e5a9d5012c659c196d96db5c6b98ea552f603").unwrap().into());
 
         // load the lock script
         let script = load_wast("lock.wast");
 
         // run the lock script to check the proof
-        let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &mut pstack, &mut rstack);
+        let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &kvp_unlock, &mut pstack, &mut rstack);
 
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();
@@ -177,10 +180,13 @@ fn test_preimage_lock_wast() {
     // create the stack to use
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
+    // the key-value pair store with the message and signature data
+    let mut kvp_unlock = Kvp::default();
+    // the key-value pair store with the encoded Multikey
+    let mut kvp_lock = Kvp::default();
 
     { // unlock
         // set up the key-value pair store with the message and a preimage
-        let mut kvp_unlock = Kvp::default();
         let _ = kvp_unlock.put("/entry/", &"blah".as_bytes().into());
         let _ = kvp_unlock.put("/entry/proof", &"for great justice, move every zig!".as_bytes().into());
 
@@ -188,26 +194,24 @@ fn test_preimage_lock_wast() {
         let script = load_wast("unlock.wast");
 
         // run the unlock script to set up the stack
-        let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &mut pstack, &mut rstack);
+        let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &kvp_unlock, &mut pstack, &mut rstack);
 
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
-        assert_eq!(2, context.pstack.len());
+        assert_eq!(1, context.pstack.len());
         assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: b"for great justice, move every zig!".to_vec() }));
-        assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"blah".to_vec() }));
     }
 
     { // lock
         // set up the key-value pair store with the encoded Multihash
-        let mut kvp_lock = Kvp::default();
         let _ = kvp_lock.put("/hash", &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
 
         // load the lock script
         let script = load_wast("lock.wast");
 
         // run the lock script to check the proof
-        let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &mut pstack, &mut rstack);
+        let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &kvp_unlock, &mut pstack, &mut rstack);
 
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();
@@ -226,10 +230,13 @@ fn test_pubkey_lock_wasm() {
     // create the stack to use
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
+    // the key-value pair store with the message and signature data
+    let mut kvp_unlock = Kvp::default();
+    // the key-value pair store with the encoded Multikey
+    let mut kvp_lock = Kvp::default();
 
     { // unlock
         // set up the key-value pair store with the message and signature data
-        let mut kvp_unlock = Kvp::default();
         let _ = kvp_unlock.put("/entry/", &"for great justice, move every zig!".as_bytes().into());
         let _ = kvp_unlock.put("/entry/proof", &hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap().into());
 
@@ -237,26 +244,24 @@ fn test_pubkey_lock_wasm() {
         let script = load_wasm("unlock.wasm");
 
         // run the unlock script to set up the stack
-        let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &mut pstack, &mut rstack);
+        let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &kvp_unlock, &mut pstack, &mut rstack);
 
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
-        assert_eq!(2, context.pstack.len());
+        assert_eq!(1, context.pstack.len());
         assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: hex::decode("3983a6c0060001004076fee92ca796162b5e37a84b4150da685d636491b43c1e2a1fab392a7337553502588a609075b56c46b5c033b260d8d314b584e396fc2221c55f54843679ee08").unwrap() }));
-        assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"for great justice, move every zig!".to_vec() }));
     }
 
     { // lock
         // set up the key-value pair store with the encoded Multikey
-        let mut kvp_lock = Kvp::default();
         let _ = kvp_lock.put("/pubkey", &hex::decode("3aed010874657374206b657901012084d515ef051e07d597f3c14ac09e5a9d5012c659c196d96db5c6b98ea552f603").unwrap().into());
 
         // load the lock script
         let script = load_wasm("lock.wasm");
 
         // run the lock script to check the proof
-        let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &mut pstack, &mut rstack);
+        let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &kvp_unlock, &mut pstack, &mut rstack);
 
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();
@@ -273,10 +278,13 @@ fn test_preimage_lock_wasm() {
     // create the stack to use
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
+    // the key-value pair store with the message and signature data
+    let mut kvp_unlock = Kvp::default();
+    // the key-value pair store with the encoded Multikey
+    let mut kvp_lock = Kvp::default();
 
     { // unlock
         // set up the key-value pair store with the message and a preimage
-        let mut kvp_unlock = Kvp::default();
         let _ = kvp_unlock.put("/entry/", &"blah".as_bytes().into());
         let _ = kvp_unlock.put("/entry/proof", &"for great justice, move every zig!".as_bytes().into());
 
@@ -284,26 +292,24 @@ fn test_preimage_lock_wasm() {
         let script = load_wasm("unlock.wasm");
 
         // run the unlock script to set up the stack
-        let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &mut pstack, &mut rstack);
+        let mut instance = test_example(script, "for_great_justice", true, &kvp_unlock, &kvp_unlock, &mut pstack, &mut rstack);
 
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();
         let context = ctx.data_mut();
-        assert_eq!(2, context.pstack.len());
+        assert_eq!(1, context.pstack.len());
         assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: b"for great justice, move every zig!".to_vec() }));
-        assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"blah".to_vec() }));
     }
 
     { // lock
         // set up the key-value pair store with the encoded Multihash
-        let mut kvp_lock = Kvp::default();
         let _ = kvp_lock.put("/hash", &hex::decode("16206b761d3b2e7675e088e337a82207b55711d3957efdb877a3d261b0ca2c38e201").unwrap().into());
 
         // load the lock script
         let script = load_wasm("lock.wasm");
 
         // run the lock script to check the proof
-        let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &mut pstack, &mut rstack);
+        let mut instance = test_example(script, "move_every_zig", true, &kvp_lock, &kvp_unlock, &mut pstack, &mut rstack);
 
         // check that the stack is what we expect
         let mut ctx = instance.store.as_context_mut();

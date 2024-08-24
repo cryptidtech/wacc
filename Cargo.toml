@@ -9,6 +9,7 @@ readme = "README.md"
 license = "Functional Source License 1.1"
 
 [dependencies]
+log = "0.4.22"
 multicid = { version = "1.0", git = "https://github.com/cryptidtech/multicid.git" }
 multihash = { version = "1.0", git = "https://github.com/cryptidtech/multihash.git" }
 multikey = { version = "1.0", git = "https://github.com/cryptidtech/multikey.git" }

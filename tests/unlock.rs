@@ -25,13 +25,15 @@ fn load_wast(file_name: &str) -> Vec<u8> {
 fn test_example<'a>(
     script: Vec<u8>,
     expected: bool,
-    pairs: &'a Kvp,
+    current: &'a Kvp,
+    proposed: &'a Kvp,
     pstack: &'a mut Stk,
     rstack: &'a mut Stk,
 ) -> Instance<'a> {
     // build the context
     let context = Context {
-        pairs,
+        current,
+        proposed,
         pstack,
         rstack,
         check_count: 0,
@@ -127,14 +129,13 @@ fn test_unlock_wast() {
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
     let script = load_wast("unlock.wast");
-    let mut instance = test_example(script, true, &kvp, &mut pstack, &mut rstack);
+    let mut instance = test_example(script, true, &kvp, &kvp, &mut pstack, &mut rstack);
 
     // Get the context
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
-    assert_eq!(2, context.pstack.len());
+    assert_eq!(1, context.pstack.len());
     assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: b"bar".to_vec() }));
-    assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"foo".to_vec() }));
     assert_eq!(0, context.rstack.len());
 }
 
@@ -149,13 +150,12 @@ fn test_unlock_wasm() {
     let mut pstack = Stk::default();
     let mut rstack = Stk::default();
     let script = load_wasm("unlock.wasm");
-    let mut instance = test_example(script, true, &kvp, &mut pstack, &mut rstack);
+    let mut instance = test_example(script, true, &kvp, &kvp, &mut pstack, &mut rstack);
 
     // Get the context
     let mut ctx = instance.store.as_context_mut();
     let context = ctx.data_mut();
-    assert_eq!(2, context.pstack.len());
+    assert_eq!(1, context.pstack.len());
     assert_eq!(context.pstack.top(), Some(Value::Bin { hint: "".to_string(), data: b"bar".to_vec() }));
-    assert_eq!(context.pstack.peek(1), Some(Value::Bin { hint: "".to_string(), data: b"foo".to_vec() }));
     assert_eq!(0, context.rstack.len());
 }
