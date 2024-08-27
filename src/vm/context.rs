@@ -34,13 +34,13 @@ pub struct Context<'a>
     pub limiter: StoreLimits,
 }
 
-impl<'a> fmt::Debug for Context<'_> {
+impl fmt::Debug for Context<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Context {{ check_count: {}, context: {} }}", self.check_count, self.context)
     }
 }
 
-impl<'a> Context<'_> {
+impl Context<'_> {
 
     /// Increment the check counter and to push a FAILURE marker on the return stack
     pub fn check_fail(&mut self, err: &str) -> Val {
@@ -90,7 +90,7 @@ impl<'a> Context<'_> {
     /// Pop a value from the parameter stack
     pub fn pop(&mut self) -> Val {
         // make sure we have at least one parameter on the stack
-        if self.pstack.len() < 1 {
+        if self.pstack.is_empty() {
             return self.fail(&format!("not enough parameters on the stack for pop ({})", self.pstack.len()));
         }
 
@@ -120,7 +120,7 @@ impl<'a> Context<'_> {
         };
 
         // make sure we have at least one parameter on the stack
-        if self.pstack.len() < 1 {
+        if self.pstack.is_empty() {
             return self.check_fail(&format!("not enough parameters on the stack for check_eq ({})", self.pstack.len()));
         }
 
@@ -151,7 +151,7 @@ impl<'a> Context<'_> {
     pub fn check_preimage(&mut self, key: &str) -> Val {
         // look up the hash and try to decode it
         let hash = {
-            match self.current.get(&key) {
+            match self.current.get(key) {
                 Some(Value::Bin { hint: _, data }) => match Multihash::try_from(data.as_ref()) {
                     Ok(hash) => hash,
                     Err(e) => return self.check_fail(&e.to_string()),
@@ -162,7 +162,7 @@ impl<'a> Context<'_> {
         };
 
         // make sure we have at least one parameter on the stack
-        if self.pstack.len() < 1 {
+        if self.pstack.is_empty() {
             return self.check_fail(
                 &format!("not enough parameters on the stack for check_preimage: {}", self.pstack.len())
             );
@@ -229,7 +229,7 @@ impl<'a> Context<'_> {
         };
 
         // make sure we have at least one parameters on the stack
-        if self.pstack.len() < 1 {
+        if self.pstack.is_empty() {
             return self.check_fail(
                 &format!("not enough parameters ({}) on the stack for check_signature ({key}, {msg})", self.pstack.len())
             );

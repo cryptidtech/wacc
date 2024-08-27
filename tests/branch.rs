@@ -10,7 +10,7 @@ fn load_wasm(file_name: &str) -> Vec<u8> {
     pb.push("target");
     pb.push(file_name);
     println!("trying to load: {:?}", pb.as_os_str());
-    read(&pb).expect(&format!("Error loading file {file_name}"))
+    read(&pb).unwrap_or_else(|_| panic!("Error loading file {file_name}"))
 }
 
 fn load_wast(file_name: &str) -> Vec<u8> {
@@ -19,7 +19,7 @@ fn load_wast(file_name: &str) -> Vec<u8> {
     pb.push("wast");
     pb.push(file_name);
     println!("trying to load: {:?}", pb.as_os_str());
-    read(&pb).expect(&format!("Error loading file {file_name}"))
+    read(&pb).unwrap_or_else(|_| panic!("Error loading file {file_name}"))
 }
 
 fn test_example<'a>(
@@ -69,7 +69,7 @@ struct Kvp {
 impl Pairs for Kvp {
     /// get a value associated with the key
     fn get(&self, key: &str) -> Option<Value> {
-        self.pairs.get(&key.to_string()).cloned()
+        self.pairs.get(key).cloned()
     }
 
     /// add a key-value pair to the storage, return previous value if overwritten

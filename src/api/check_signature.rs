@@ -7,7 +7,7 @@ use crate::{
 use log::info;
 use wasmtime::{AsContextMut, Caller, Engine, FuncType, Linker, Val, ValType::*};
 
-pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>>) -> Result<(), Error>
+pub(crate) fn add_to_linker(engine: &Engine, linker: &mut Linker<Context<'_>>) -> Result<(), Error>
 {
     linker
         .func_new(
@@ -20,9 +20,9 @@ pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>
     Ok(())
 }
 
-pub(crate) fn check_signature<'a, 'b, 'c>(
-    mut caller: Caller<'a, Context<'b>>,
-    params: &'c [Val],
+pub(crate) fn check_signature(
+    mut caller: Caller<'_, Context<'_>>,
+    params: &[Val],
     results: &mut [Val],
 ) -> Result<(), wasmtime::Error>
 {
@@ -30,7 +30,7 @@ pub(crate) fn check_signature<'a, 'b, 'c>(
     if params.len() != 4 {
         let mut ctx = caller.as_context_mut();
         let context = ctx.data_mut();
-        results[0] = context.fail(&format!("check_signature requires two string parameters"));
+        results[0] = context.fail("check_signature requires two string parameters");
         return Ok(())
     }
 

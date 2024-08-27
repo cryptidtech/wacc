@@ -13,7 +13,7 @@ pub const WASM_TRUE: Val = Val::I32(1);
 pub const WASM_FALSE: Val = Val::I32(0);
 
 /// Add the API functions to the given Linker
-pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>>) -> Result<(), Error>
+pub(crate) fn add_to_linker(engine: &Engine, linker: &mut Linker<Context<'_>>) -> Result<(), Error>
 {
     branch::add_to_linker(engine, linker)?;
     check_eq::add_to_linker(engine, linker)?;
@@ -26,9 +26,9 @@ pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>
 
 /// This function takes an offset and length and pulls the associated bytes
 /// from the linear memory and returns it as a string
-pub(crate) fn get_string<'a, 'b, 'c>(
-    caller: &mut Caller<'a, Context<'b>>,
-    params: &'c [Val],
+pub(crate) fn get_string(
+    caller: &mut Caller<'_, Context<'_>>,
+    params: &[Val],
 ) -> Result<String, Error>
 {
     // get the mem
@@ -56,7 +56,7 @@ pub(crate) fn get_string<'a, 'b, 'c>(
 
     // decode the string from the memory
     let s = {
-        let mut buf = Vec::<u8>::with_capacity(len);
+        let mut buf = vec![0; len];
         buf.resize(len, 0u8);
         mem.read(&caller, ptr, buf.as_mut_slice())
             .map_err(|_| ApiError::MemoryDecodeError)?;
@@ -67,8 +67,8 @@ pub(crate) fn get_string<'a, 'b, 'c>(
 }
 
 /// This function takes 
-pub(crate) fn put_string<'a, 'b>(
-    caller: &mut Caller<'a, Context<'b>>,
+pub(crate) fn put_string(
+    caller: &mut Caller<'_, Context<'_>>,
     s: &str,
     results: &mut [Val],
 ) -> Result<(), Error>

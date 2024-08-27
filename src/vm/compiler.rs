@@ -31,6 +31,6 @@ impl Compiler
         let engine = Engine::new(&config).map_err(|e| Error::Wasmtime(e.to_string()))?;
 
         // try to compile the script
-        Ok(engine.precompile_module(&self.bytes).map_err(|e| Error::Wasmtime(e.to_string()))?)
+        engine.precompile_module(&self.bytes).map_err(|e| Error::Wasmtime(e.to_string()))
     }
 }

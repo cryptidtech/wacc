@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: FSL-1.1
-//!
 #![warn(missing_docs)]
 #![allow(dead_code)]
 #![deny(
@@ -8,6 +7,8 @@
     unused_import_braces,
     unused_qualifications
 )]
+
+//! WACC
 
 /// WACC API function implementations
 pub(crate) mod api;

@@ -6,7 +6,7 @@ use crate::{
 };
 use wasmtime::{AsContextMut, Caller, Engine, FuncType, Linker, Val, ValType::*};
 
-pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>>) -> Result<(), Error>
+pub(crate) fn add_to_linker(engine: &Engine, linker: &mut Linker<Context<'_>>) -> Result<(), Error>
 {
     linker
         .func_new("wacc", "_branch", FuncType::new(engine, [I32, I32], [I32, I32]), branch)
@@ -14,9 +14,9 @@ pub(crate) fn add_to_linker<'a>(engine: &Engine, linker: &mut Linker<Context<'a>
     Ok(())
 }
 
-pub(crate) fn branch<'a, 'b, 'c>(
-    mut caller: Caller<'a, Context<'b>>,
-    params: &'c [Val],
+pub(crate) fn branch(
+    mut caller: Caller<'_, Context<'_>>,
+    params: &[Val],
     results: &mut [Val],
 ) -> Result<(), wasmtime::Error>
 {
