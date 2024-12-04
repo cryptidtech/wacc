@@ -10,10 +10,10 @@ license = "Functional Source License 1.1"
 
 [dependencies]
 log = "0.4.22"
-multicid = { version = "1.0", git = "https://github.com/cryptidtech/multicid.git" }
+multicid = { version = "1.0", git = "https://github.com/DougAnderson444/multicid", branch = "external-prover" }
 multihash = { version = "1.0", git = "https://github.com/cryptidtech/multihash.git" }
-multikey = { version = "1.0", git = "https://github.com/cryptidtech/multikey.git" }
-multisig = { version = "1.0", git = "https://github.com/cryptidtech/multisig.git" }
+multikey = { version = "1.0", git = "https://github.com/DougAnderson444/multikey.git" }
+multisig = { version = "1.0", git = "https://github.com/DougAnderson444/multisig.git" }
 multitrait = { version = "1.0", git = "https://github.com/cryptidtech/multitrait.git" }
 multiutil = { version = "1.0", git = "https://github.com/cryptidtech/multiutil.git" }
 test-log = { version = "0.2.16", features = ["trace", "color"] }
