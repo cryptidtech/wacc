@@ -5,9 +5,9 @@
 
   ;; function to check a pubkey signature proof
   (func $main (export "move_every_zig") (param) (result i32)
-    ;; check_signature("/pubkey", "/entry/")
+    ;; check_signature("/keys/primary", "/entry/")
     i32.const 7
-    i32.const 7
+    i32.const 13
     i32.const 0
     i32.const 7
     call $check_signature
@@ -19,7 +19,7 @@
 
   ;; String constants for referenceing key-value pairs
   ;;
-  ;;                    [NAME]          [IDX] [LEN]
-  (data (i32.const  0)  "/entry/" )  ;;     0     7
-  (data (i32.const  7)  "/pubkey" )  ;;     7     7
+  ;;                    [NAME]                [IDX] [LEN]
+  (data (i32.const  0)  "/entry/"        )  ;;     0     7
+  (data (i32.const  7)  "/keys/primary"  )  ;;     7    13
 )

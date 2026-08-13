@@ -6,32 +6,32 @@ pub fn add_to_linker(engine: &Engine, linker: &mut Linker<Context>) -> Result<()
     linker
         .func_new(
             "wacc",
-            "_push",
+            "_push_value",
             FuncType::new(engine, [I32, I32], [I32]),
-            push,
+            push_value,
         )
         .map_err(|e| ApiError::RegisterApiFailed {
-            function_name: "_push".to_string(),
+            function_name: "_push_value".to_string(),
             reason: format!("{e}"),
         })?;
     Ok(())
 }
 
-pub fn push(
+pub fn push_value(
     mut caller: Caller<'_, Context>,
     params: &[Val],
     results: &mut [Val],
 ) -> Result<(), wasmtime::Error> {
-    // get the string parameter
-    let ret = api::get_string(&mut caller, params);
+    // read raw bytes from linear memory
+    let ret = api::get_bytes(&mut caller, params);
 
     // get the context
     let mut ctx = caller.as_context_mut();
     let context = ctx.data_mut();
 
-    // check the preimage
+    // push the raw bytes onto the parameter stack
     results[0] = match ret {
-        Ok(key) => context.push(&key),
+        Ok(bytes) => context.push_value(bytes),
         Err(e) => context.fail(&e.to_string()),
     };
 

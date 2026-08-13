@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: FSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 use crate::Value;
 
 /// Trait to a key-value storage mechanism

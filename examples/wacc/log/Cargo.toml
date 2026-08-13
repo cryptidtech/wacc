@@ -1,6 +1,6 @@
 [package]
-name = "unlock"
-version = "0.1.0"
+name = "log"
+version = "0.7.0"
 edition = "2021"
 
 [lib]

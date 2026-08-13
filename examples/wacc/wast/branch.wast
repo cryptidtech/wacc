@@ -5,11 +5,11 @@
   (import "wacc" "_log" (func $log (param i32 i32) (result i32)))
 
   (func $main (export "move_every_zig") (param) (result i32)
-    ;; branch("pubkey")
+    ;; branch("keys/primary")
     i32.const 0
-    i32.const 6
+    i32.const 12
     call $branch
-    ;; log(branch("pubkey"))
+    ;; log(branch("keys/primary"))
     call $log
     return
   )
@@ -19,6 +19,6 @@
 
   ;; String constants for referenceing key-value pairs
   ;;
-  ;;                    [NAME]                  [IDX] [LEN]
-  (data (i32.const  0)  "pubkey"          )  ;;     0     6
+  ;;                    [NAME]                   [IDX] [LEN]
+  (data (i32.const  0)  "keys/primary"      )  ;;     0    12
 )

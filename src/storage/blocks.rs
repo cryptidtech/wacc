@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: FSL-1.1
-use multicid::Cid;
+// SPDX-License-Identifier: Apache-2.0
+use multi_cid::Cid;
 
 /// Block storage trait for getting and putting content address data
 pub trait Blocks {

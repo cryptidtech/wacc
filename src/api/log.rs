@@ -1,25 +1,27 @@
-// SPDX-License-Identifier: FSL-1.1
-use crate::{
-    api,
-    error::ApiError,
-    Context, Error,
-};
-use wasmtime::{AsContextMut, Caller, Engine, FuncType, Linker, Val, ValType::*};
+// SPDX-License-Identifier: Apache-2.0
+use crate::{api, error::ApiError, Context, Error};
+use wasmtime::{AsContextMut, Caller, Engine, FuncType, Linker, Val, ValType::I32};
 
-pub(crate) fn add_to_linker(engine: &Engine, linker: &mut Linker<Context<'_>>) -> Result<(), Error>
-{
+pub fn add_to_linker(engine: &Engine, linker: &mut Linker<Context>) -> Result<(), Error> {
     linker
-        .func_new("wacc", "_log", FuncType::new(engine, [I32, I32], [I32]), log)
-        .map_err(|e| ApiError::RegisterApiFailed(e.to_string()))?;
+        .func_new(
+            "wacc",
+            "_log",
+            FuncType::new(engine, [I32, I32], [I32]),
+            log,
+        )
+        .map_err(|e| ApiError::RegisterApiFailed {
+            function_name: "_log".to_string(),
+            reason: format!("{e}"),
+        })?;
     Ok(())
 }
 
-pub(crate) fn log(
-    mut caller: Caller<'_, Context<'_>>,
+pub fn log(
+    mut caller: Caller<'_, Context>,
     params: &[Val],
     results: &mut [Val],
-) -> Result<(), wasmtime::Error>
-{
+) -> Result<(), wasmtime::Error> {
     // get the string parameter
     let ret = api::get_string(&mut caller, params);
 

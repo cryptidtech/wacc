@@ -7,18 +7,18 @@ pub fn add_to_linker(engine: &Engine, linker: &mut Linker<Context>) -> Result<()
     linker
         .func_new(
             "wacc",
-            "_check_signature",
+            "_check_preimage_value",
             FuncType::new(engine, [I32, I32, I32, I32], [I32]),
-            check_signature,
+            check_preimage_value,
         )
         .map_err(|e| ApiError::RegisterApiFailed {
-            function_name: "_check_signature".to_string(),
+            function_name: "_check_preimage_value".to_string(),
             reason: format!("{e}"),
         })?;
     Ok(())
 }
 
-pub fn check_signature(
+pub fn check_preimage_value(
     mut caller: Caller<'_, Context>,
     params: &[Val],
     results: &mut [Val],
@@ -27,17 +27,28 @@ pub fn check_signature(
     if params.len() != 4 {
         let mut ctx = caller.as_context_mut();
         let context = ctx.data_mut();
-        results[0] = context.fail("check_signature requires two string parameters");
+        results[0] = context.fail("check_preimage_value requires hash and key-path parameters");
         return Ok(());
     }
 
-    // get the index and length of the pubkey and message key-path strings
-    let (k, m) = params.split_at(2);
-    info!("check_signature: {k:?}, {m:?}");
+    // get the hash bytes and key-path string pairs from WASM memory
+    let (h, k) = params.split_at(2);
+    info!("check_preimage_value: {h:?}, {k:?}");
 
-    // get the key-path string for the public key
+    // read hash bytes from WASM memory
+    let hash_bytes = match api::get_bytes(&mut caller, h) {
+        Ok(b) => b,
+        Err(e) => {
+            let mut ctx = caller.as_context_mut();
+            let context = ctx.data_mut();
+            results[0] = context.fail(&e.to_string());
+            return Ok(());
+        }
+    };
+
+    // read KVP path string from WASM memory
     let key = match api::get_string(&mut caller, k) {
-        Ok(kp) => kp,
+        Ok(s) => s,
         Err(e) => {
             let mut ctx = caller.as_context_mut();
             let context = ctx.data_mut();
@@ -46,21 +57,10 @@ pub fn check_signature(
         }
     };
 
-    // get the key-path string for the message
-    let msg = match api::get_string(&mut caller, m) {
-        Ok(msg) => msg,
-        Err(e) => {
-            let mut ctx = caller.as_context_mut();
-            let context = ctx.data_mut();
-            results[0] = context.fail(&e.to_string());
-            return Ok(());
-        }
-    };
-
-    // check the digital signature over the message
+    // call context method
     let mut ctx = caller.as_context_mut();
     let context = ctx.data_mut();
-    results[0] = context.check_signature(&key, &msg);
+    results[0] = context.check_preimage_value(&hash_bytes, &key);
 
     Ok(())
 }

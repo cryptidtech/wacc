@@ -23,9 +23,9 @@
         ;; the threshold signature verify failed so try to verify a public
         ;; key signature as the proof 
 
-        ;; check_signature("/pubkey", "/entry")
+        ;; check_signature("/keys/primary", "/entry")
         i32.const 15
-        i32.const 7
+        i32.const 13
         i32.const 0
         i32.const 7
         call $check_signature
@@ -41,7 +41,7 @@
             ;; primage reveal as the proof 
 
             ;; check_preimage("/hash")
-            i32.const 22
+            i32.const 28
             i32.const 5
             call $check_preimage
 
@@ -61,9 +61,9 @@
 
   ;; String constants for referenceing key-value pairs
   ;;
-  ;;                    [NAME]           [IDX] [LEN]
-  (data (i32.const  0)  "/entry/"  )  ;;     0     7
-  (data (i32.const  7)  "/tpubkey" )  ;;     7     8
-  (data (i32.const 15)  "/pubkey"  )  ;;    15     7
-  (data (i32.const 22)  "/hash"    )  ;;    22     5
+  ;;                    [NAME]                [IDX] [LEN]
+  (data (i32.const  0)  "/entry/"        )  ;;     0     7
+  (data (i32.const  7)  "/tpubkey"       )  ;;     7     8
+  (data (i32.const 15)  "/keys/primary"  )  ;;    15    13
+  (data (i32.const 28)  "/hash"          )  ;;    28     5
 )

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: FSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 
 /// The interface to a key-value pairs store
 pub mod pairs;

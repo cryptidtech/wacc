@@ -1,25 +1,87 @@
 [package]
 name = "wacc"
-version = "1.0.5"
+version = "2.0.0"
 edition = "2021"
+rust-version = "1.85"
 authors = ["Dave Grantham <dwg@linuxprogrammer.org>"]
-description = "Web assembly cryptographic constructs VM implementation"
+description = "Web Assembly Cryptographic Constructs VM implementation"
 repository = "https://github.com/cryptidtech/wacc.git"
 readme = "README.md"
-license = "Functional Source License 1.1"
+license = "Apache-2.0"
+keywords = ["wasm", "cryptographic", "vm", "provenance", "scripting"]
+categories = ["cryptography", "wasm"]
 
 [dependencies]
-log = "0.4.22"
-multicid = { version = "1.0", git = "https://github.com/cryptidtech/multicid.git" }
-multihash = { version = "1.0", git = "https://github.com/cryptidtech/multihash.git" }
-multikey = { version = "1.0", git = "https://github.com/cryptidtech/multikey.git" }
-multisig = { version = "1.0", git = "https://github.com/cryptidtech/multisig.git" }
-multitrait = { version = "1.0", git = "https://github.com/cryptidtech/multitrait.git" }
-multiutil = { version = "1.0", git = "https://github.com/cryptidtech/multiutil.git" }
-test-log = { version = "0.2.16", features = ["trace", "color"] }
-thiserror = "1.0"
-tracing = "0.1.40"
-wasmtime = "19.0"
+blake3 = { version = "1.5.1", features = ["traits-preview"] }
+log = "0.4"
+multi-cid = { version = "0.1", path = "../multi-cid" }
+multi-codec = { package = "bs-multicodec", version = "0.7.0", path = "../bettersign/crates/multicodec" }
+multi-hash = { package = "bs-multihash", version = "0.7.0", path = "../bettersign/crates/multihash" }
+multi-key = { package = "bs-multikey", version = "0.7.0", path = "../bettersign/crates/multikey" }
+multi-sig = { package = "bs-multisig", version = "0.7.0", path = "../bettersign/crates/multisig" }
+multi-trait = { package = "bs-multitrait", version = "0.7.0", path = "../bettersign/crates/multitrait" }
+multi-util = { package = "bs-multiutil", version = "0.7.0", path = "../bettersign/crates/multiutil" }
+thiserror = "2.0"
+tracing = "0.1"
+wasmtime = { version = "41.0", default-features = false, features = [
+    "cranelift",
+    "parallel-compilation",
+    "runtime",
+    "std",
+    "wat",
+] }
 
 [dev-dependencies]
 hex = "0.4"
+proptest = "1.4"
+test-log = { version = "0.2", features = ["trace", "color"] }
+
+[[test]]
+name = "log"
+path = "tests/log.rs"
+
+[[test]]
+name = "lock"
+path = "tests/lock.rs"
+
+[[test]]
+name = "forklock"
+path = "tests/forklock.rs"
+
+[[test]]
+name = "preimage"
+path = "tests/preimage.rs"
+
+[[test]]
+name = "unlock"
+path = "tests/unlock.rs"
+
+[[test]]
+name = "pubkeysig"
+path = "tests/pubkeysig.rs"
+
+[[test]]
+name = "branch"
+path = "tests/branch.rs"
+
+[[test]]
+name = "security"
+path = "tests/security.rs"
+
+[[test]]
+name = "concurrency"
+path = "tests/concurrency.rs"
+
+[[test]]
+name = "edge_cases"
+path = "tests/edge_cases.rs"
+
+[[test]]
+name = "property_tests"
+path = "tests/property_tests.rs"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+multiple_crate_versions = { level = "allow", priority = 1 }

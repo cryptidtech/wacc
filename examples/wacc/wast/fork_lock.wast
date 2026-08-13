@@ -7,36 +7,36 @@
 
   ;; standard lock function
   (func $main (export "move_every_zig") (param) (result i32)
-    ;; branch("pubkey")
+    ;; branch("keys/primary")
     i32.const 7
-    i32.const 6
+    i32.const 12
     call $branch
     i32.const 0
     i32.const 7
-    ;; check_signature(branch("pubkey"), "/entry/")
+    ;; check_signature(branch("keys/primary"), "/entry/")
     call $check_signature
 
-    (if 
+    (if
       (then ;; if check_signature succeeded, return true
         i32.const 1
         return
       )
       (else ;; the signature verify failed so try to verify the first entry in the child log
         ;; branch("vlad")
-        i32.const 13
+        i32.const 19
         i32.const 4
         call $branch
         ;; check_eq(branch("vlad"))
         call $check_eq
         (if
-          (then 
-            ;; branch("pubkey")
+          (then
+            ;; branch("keys/primary")
             i32.const 7
-            i32.const 6
+            i32.const 12
             call $branch
             i32.const 0
             i32.const 7
-            ;; check_signature(branch("pubkey"), "/entry/")
+            ;; check_signature(branch("keys/primary"), "/entry/")
             call $check_signature
             return
           )
@@ -54,8 +54,8 @@
 
   ;; String constants for referenceing key-value pairs
   ;;
-  ;;                    [NAME]          [IDX] [LEN]
-  (data (i32.const  0)  "/entry/" )  ;;     0     7
-  (data (i32.const  7)  "pubkey"  )  ;;     7     6
-  (data (i32.const 13)  "vlad"    )  ;;    13     4
+  ;;                    [NAME]               [IDX] [LEN]
+  (data (i32.const  0)  "/entry/"       )  ;;     0     7
+  (data (i32.const  7)  "keys/primary"  )  ;;     7    12
+  (data (i32.const 19)  "vlad"          )  ;;    19     4
 )

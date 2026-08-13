@@ -14,5 +14,5 @@ fn check_preimage(key: &str) -> bool {
 
 #[no_mangle]
 pub fn move_zig() -> bool {
-    check_signature("/tpubkey") || check_signature("/pubkey") || check_preimage("/hash")
+    check_signature("/tpubkey") || check_signature("/keys/primary") || check_preimage("/hash")
 }

@@ -1,17 +1,16 @@
-// SPDX-License-Identifier: FSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 use crate::Error;
 use wasmtime::{Config, Engine};
 
 /// Compiler type for compiling wasm scripts
 #[derive(Default)]
-pub struct Compiler
-{
+pub struct Compiler {
     bytes: Vec<u8>,
 }
 
-impl Compiler
-{
+impl Compiler {
     /// create a new builder
+    #[must_use]
     pub fn new() -> Self {
         Self {
             bytes: Vec::default(),
@@ -24,13 +23,15 @@ impl Compiler
         self
     }
 
-    /// Tries to build the [`Instance`] from the builder configuration
+    /// Tries to compile the WASM module to precompiled bytecode
     pub fn try_compile(self) -> Result<Vec<u8>, Error> {
         // configure the engine
         let config = Config::default();
-        let engine = Engine::new(&config).map_err(|e| Error::Wasmtime(e.to_string()))?;
+        let engine = Engine::new(&config).map_err(Error::from_wasmtime)?;
 
         // try to compile the script
-        engine.precompile_module(&self.bytes).map_err(|e| Error::Wasmtime(e.to_string()))
+        engine
+            .precompile_module(&self.bytes)
+            .map_err(Error::from_wasmtime)
     }
 }
