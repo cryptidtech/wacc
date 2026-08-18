@@ -12,18 +12,18 @@ keywords = ["wasm", "cryptographic", "vm", "provenance", "scripting"]
 categories = ["cryptography", "wasm"]
 
 [dependencies]
-blake3 = { version = "1.5.1", features = ["traits-preview"] }
+blake3 = { version = "1.8.1", features = ["traits-preview"] }
 log = "0.4"
-multi-cid = { version = "0.1", path = "../multi-cid" }
-multi-codec = { package = "bs-multicodec", version = "0.7.0", path = "../bettersign/crates/multicodec" }
-multi-hash = { package = "bs-multihash", version = "0.7.0", path = "../bettersign/crates/multihash" }
-multi-key = { package = "bs-multikey", version = "0.7.0", path = "../bettersign/crates/multikey" }
-multi-sig = { package = "bs-multisig", version = "0.7.0", path = "../bettersign/crates/multisig" }
-multi-trait = { package = "bs-multitrait", version = "0.7.0", path = "../bettersign/crates/multitrait" }
-multi-util = { package = "bs-multiutil", version = "0.7.0", path = "../bettersign/crates/multiutil" }
+multi-cid = "0.2"
+multi-codec = "1.2" 
+multi-hash = "1.1"
+multi-key = "1.1"
+multi-sig = "1.2"
+multi-trait = "1.0"
+multi-util = "1.1"
 thiserror = "2.0"
 tracing = "0.1"
-wasmtime = { version = "41.0", default-features = false, features = [
+wasmtime = { version = "47.0", default-features = false, features = [
     "cranelift",
     "parallel-compilation",
     "runtime",
@@ -33,7 +33,7 @@ wasmtime = { version = "41.0", default-features = false, features = [
 
 [dev-dependencies]
 hex = "0.4"
-proptest = "1.4"
+proptest = "1.11"
 test-log = { version = "0.2", features = ["trace", "color"] }
 
 [[test]]
