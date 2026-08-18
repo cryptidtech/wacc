@@ -21,7 +21,7 @@ fn load_wast(file_name: &str) -> Vec<u8> {
     let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     pb.push("examples/wacc/wast");
     pb.push(file_name);
-    println!("trying to load: {:?}", pb.as_os_str());
+    println!("trying to load: {}", pb.as_os_str().display());
     read(&pb).unwrap_or_else(|_| panic!("WAST file {file_name} must exist"))
 }
 

@@ -23,7 +23,7 @@ fn load_wasm(file_name: &str) -> Option<Vec<u8>> {
     let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     pb.push("target");
     pb.push(file_name);
-    info!("trying to load: {:?}", pb.as_os_str());
+    info!("trying to load: {}", pb.as_os_str().display());
     read(&pb).ok()
 }
 
@@ -31,7 +31,7 @@ fn load_wast(file_name: &str) -> Vec<u8> {
     let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     pb.push("examples/wacc/wast");
     pb.push(file_name);
-    info!("trying to load: {:?}", pb.as_os_str());
+    info!("trying to load: {}", pb.as_os_str().display());
     read(&pb).unwrap_or_else(|_| panic!("WAST file {} must exist", file_name))
 }
 
