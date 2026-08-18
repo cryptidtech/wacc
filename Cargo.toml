@@ -2,7 +2,7 @@
 name = "wacc"
 version = "2.0.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.95"
 authors = ["Dave Grantham <dwg@linuxprogrammer.org>"]
 description = "Web Assembly Cryptographic Constructs VM implementation"
 repository = "https://github.com/cryptidtech/wacc.git"
