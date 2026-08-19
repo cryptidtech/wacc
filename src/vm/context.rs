@@ -138,7 +138,7 @@ impl Context {
 
     /// Push raw bytes directly onto the parameter stack
     ///
-    /// Unlike [`push`], this does not look up a value from the KVP store.
+    /// Unlike [`Self::push`], this does not look up a value from the KVP store.
     /// It pushes the provided bytes directly as a `Value::Bin`.
     /// Used by the `_push_value` WASM import to push data from linear memory.
     pub fn push_value(&mut self, bytes: Vec<u8>) -> Val {
