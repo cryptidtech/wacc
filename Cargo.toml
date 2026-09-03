@@ -1,8 +1,8 @@
 [package]
 name = "wacc"
-version = "2.0.0"
+version = "2.1.0"
 edition = "2021"
-rust-version = "1.95"
+rust-version = "1.96"
 authors = ["Dave Grantham <dwg@linuxprogrammer.org>"]
 description = "Web Assembly Cryptographic Constructs VM implementation"
 repository = "https://github.com/cryptidtech/wacc.git"
@@ -15,10 +15,10 @@ categories = ["cryptography", "wasm"]
 blake3 = { version = "1.8.1", features = ["traits-preview"] }
 log = "0.4"
 multi-cid = "0.2"
-multi-codec = "1.2" 
+multi-codec = "1.3"
 multi-hash = "1.1"
-multi-key = "1.1"
-multi-sig = "1.2"
+multi-key = "1.2"
+multi-sig = "1.3"
 multi-trait = "1.0"
 multi-util = "1.1"
 thiserror = "2.0"

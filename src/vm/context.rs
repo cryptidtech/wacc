@@ -9,7 +9,7 @@ use log::info;
 use multi_codec::Codec;
 use multi_hash::{mh, Multihash};
 use multi_key::{Multikey, Views};
-use multi_sig::Multisig;
+use multi_sig::{Multisig, Views as _};
 use multi_util::CodecInfo;
 use std::{fmt, io::Write};
 use wasmtime::{StoreLimits, Val};
@@ -39,6 +39,26 @@ const fn is_lamport_sig(codec: Codec) -> bool {
             | Codec::LamportBlake3256Sig
             | Codec::LamportShake128Sig
             | Codec::LamportShake256Sig
+    )
+}
+
+/// Returns true if the codec is one of the merkle-tree Lamport signature
+/// codecs (stateful: each signature consumes a leaf index carried in the
+/// signature wire data, byte 1 of the `MtSignature` encoding).
+const fn is_lamport_merkle_sig(codec: Codec) -> bool {
+    matches!(
+        codec,
+        Codec::LamportMerkleSha3512Sig
+            | Codec::LamportMerkleSha3384Sig
+            | Codec::LamportMerkleSha3256Sig
+            | Codec::LamportMerkleSha2512Sig
+            | Codec::LamportMerkleSha2384Sig
+            | Codec::LamportMerkleSha2256Sig
+            | Codec::LamportMerkleBlake2B512Sig
+            | Codec::LamportMerkleBlake2S256Sig
+            | Codec::LamportMerkleBlake3256Sig
+            | Codec::LamportMerkleShake128Sig
+            | Codec::LamportMerkleShake256Sig
     )
 }
 
@@ -428,35 +448,8 @@ impl Context {
         match verification_result {
             Ok(()) => {
                 info!("check_signature({key}, {msg}) -> true");
-                // XMSS is stateful: enforce that the consumed leaf index has not
-                // been reused or rolled back for this public key across the log.
-                if is_xmss_msig(sig.codec()) {
-                    let index = match sig.sig_index() {
-                        Some(i) => i,
-                        None => return self.check_fail("XMSS multisig missing sig-index"),
-                    };
-                    let pubkey_bytes = match pubkey.data_view().and_then(|dv| dv.key_bytes()) {
-                        Ok(b) => b,
-                        Err(e) => return self.check_fail(&e.to_string()),
-                    };
-                    if let Err(e) =
-                        crate::vm::xmss_guard::enforce_xmss_index(pubkey_bytes.as_slice(), index)
-                    {
-                        return self.check_fail(&e);
-                    }
-                }
-                // Lamport keys are one-time: enforce that this public key has not
-                // already signed an earlier entry in the log.
-                if is_lamport_sig(sig.codec()) {
-                    let pubkey_bytes = match pubkey.data_view().and_then(|dv| dv.key_bytes()) {
-                        Ok(b) => b,
-                        Err(e) => return self.check_fail(&e.to_string()),
-                    };
-                    if let Err(e) =
-                        crate::vm::xmss_guard::enforce_lamport_once(pubkey_bytes.as_slice())
-                    {
-                        return self.check_fail(&e);
-                    }
+                if let Err(e) = self.enforce_stateful_key_rules(&sig, &pubkey) {
+                    return self.check_fail(&e);
                 }
                 // the signature verification worked so pop the signature argument off
                 // of the stack before continuing
@@ -468,5 +461,58 @@ impl Context {
                 self.check_fail(&e.to_string())
             }
         }
+    }
+
+    /// Enforce the stateful/one-time key rules after a successful signature
+    /// verification: XMSS leaf-index monotonicity, one-time Lamport key use,
+    /// and merkle-tree Lamport leaf monotonicity.
+    fn enforce_stateful_key_rules(&self, sig: &Multisig, pubkey: &Multikey) -> Result<(), String> {
+        let codec = sig.codec();
+        // XMSS is stateful: enforce that the consumed leaf index has not
+        // been reused or rolled back for this public key across the log.
+        if is_xmss_msig(codec) {
+            let index = match sig.sig_index() {
+                Some(i) => i,
+                None => return Err("XMSS multisig missing sig-index".into()),
+            };
+            let pubkey_bytes = match pubkey.data_view().and_then(|dv| dv.key_bytes()) {
+                Ok(b) => b,
+                Err(e) => return Err(e.to_string()),
+            };
+            return crate::vm::xmss_guard::enforce_xmss_index(pubkey_bytes.as_slice(), index);
+        }
+        // Lamport keys are one-time: enforce that this public key has not
+        // already signed an earlier entry in the log.
+        if is_lamport_sig(codec) {
+            let pubkey_bytes = match pubkey.data_view().and_then(|dv| dv.key_bytes()) {
+                Ok(b) => b,
+                Err(e) => return Err(e.to_string()),
+            };
+            return crate::vm::xmss_guard::enforce_lamport_once(pubkey_bytes.as_slice());
+        }
+        // Merkle-tree Lamport keys are stateful: each signature embeds
+        // its consumed leaf index in the MtSignature wire data (byte 1,
+        // after the depth byte). Enforce monotonic consumption across
+        // the log.
+        if is_lamport_merkle_sig(codec) {
+            let pubkey_bytes = match pubkey.data_view().and_then(|dv| dv.key_bytes()) {
+                Ok(b) => b,
+                Err(e) => return Err(e.to_string()),
+            };
+            let sig_bytes = match sig.data_view().and_then(|dv| dv.sig_bytes()) {
+                Ok(b) => b,
+                Err(e) => return Err(e.to_string()),
+            };
+            let depth = match sig_bytes.first() {
+                Some(&d) if (1..=3).contains(&d) => d,
+                _ => return Err("merkle-Lamport signature has invalid depth byte".into()),
+            };
+            let index = match sig_bytes.get(1) {
+                Some(&i) if usize::from(i) < (1usize << depth) => usize::from(i),
+                _ => return Err("merkle-Lamport signature has invalid leaf index".into()),
+            };
+            return crate::vm::xmss_guard::enforce_lamport_merkle(pubkey_bytes.as_slice(), index);
+        }
+        Ok(())
     }
 }
