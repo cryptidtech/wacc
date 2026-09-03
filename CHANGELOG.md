@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-09-02
+
+### Changed
+
+- Upgraded `wasmtime` from 47.0 to 48.0. No API changes.
+
 ## [2.1.0] - 2026-09-01
 
 ### Added
@@ -72,6 +78,7 @@ different from 1.0.5.
 
 - Previous standalone release. Used `wasmtime 19.0`, `thiserror 1.0`, and FSL-1.1 license. Git deps for `multicid`, `multihash`, `multikey`, `multisig`, `multitrait`, `multiutil`.
 
+[2.1.1]: https://github.com/cryptidtech/wacc/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/cryptidtech/wacc/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/cryptidtech/wacc/releases/tag/v2.0.0
 [1.0.5]: https://github.com/cryptidtech/wacc/releases/tag/v1.0.5
