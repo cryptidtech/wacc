@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-//! Thread-local enforcement of XMSS stateful-signature leaf-index monotonicity.
+//! Thread-local enforcement of XMSS stateful-signature leaf-index monotonicity
+//! and merkle-tree Lamport leaf reuse prevention.
 //!
 //! XMSS is a stateful hash-based signature scheme: each signature consumes a
 //! one-time leaf `index` that must never be reused. A provenance log records the
@@ -8,6 +9,11 @@
 //! public key the indices used by successive entries strictly increase. That
 //! makes a key-state rollback (e.g. restoring a key from an old snapshot and
 //! re-signing at an already-consumed index) fail verification.
+//!
+//! Merkle-tree Lamport signatures carry their consumed leaf index inside the
+//! signature wire data (`MtSignature` encodes `[depth, index, ...]`, so the
+//! index is byte 1). Merkle leaves are also consumed in order, so the same
+//! strictly-increasing monotonicity rule applies per merkle public key.
 //!
 //! The state is thread-local because a log is verified sequentially on one
 //! thread (the wacc VM runs scripts synchronously on the calling thread). The
@@ -20,7 +26,8 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
 /// Per-key stateful-signature state for one verification pass. Tracks XMSS leaf
-/// index monotonicity and Lamport one-time-key single use.
+/// index monotonicity, Lamport one-time-key single use, and merkle-tree Lamport
+/// leaf monotonicity.
 #[derive(Default)]
 struct XmssIndexState {
     /// max leaf index committed by previously-validated entries, keyed by the
@@ -33,6 +40,11 @@ struct XmssIndexState {
     lamport_used: HashSet<Vec<u8>>,
     /// Lamport public keys observed while verifying the current entry
     lamport_observed: Vec<Vec<u8>>,
+    /// max merkle leaf index committed by previously-validated entries, keyed
+    /// by the merkle public-key bytes
+    merkle_committed: HashMap<Vec<u8>, usize>,
+    /// merkle leaf indices observed while verifying the current entry
+    merkle_observed: Vec<(Vec<u8>, usize)>,
 }
 
 impl XmssIndexState {
@@ -65,6 +77,22 @@ impl XmssIndexState {
         Ok(())
     }
 
+    /// Check that `index` is strictly greater than any committed merkle leaf
+    /// index for this key, and record it as observed for the current entry.
+    /// Returns an error if the leaf index is reused or rolled back.
+    fn check_and_observe_merkle(&mut self, pubkey: &[u8], index: usize) -> Result<(), String> {
+        if let Some(&max) = self.merkle_committed.get(pubkey) {
+            if index <= max {
+                return Err(format!(
+                    "merkle-Lamport leaf index {index} reused or rolled back (last committed \
+                     index {max})"
+                ));
+            }
+        }
+        self.merkle_observed.push((pubkey.to_vec(), index));
+        Ok(())
+    }
+
     /// Commit the current entry's observations into the committed state.
     fn commit(&mut self) {
         for (pubkey, index) in self.observed.drain(..) {
@@ -76,12 +104,19 @@ impl XmssIndexState {
         for pubkey in self.lamport_observed.drain(..) {
             self.lamport_used.insert(pubkey);
         }
+        for (pubkey, index) in self.merkle_observed.drain(..) {
+            let slot = self.merkle_committed.entry(pubkey).or_insert(index);
+            if index > *slot {
+                *slot = index;
+            }
+        }
     }
 
     /// Discard the current entry's observations (entry did not validate).
     fn discard(&mut self) {
         self.observed.clear();
         self.lamport_observed.clear();
+        self.merkle_observed.clear();
     }
 }
 
@@ -146,6 +181,16 @@ pub(crate) fn enforce_xmss_index(pubkey: &[u8], index: u32) -> Result<(), String
 pub(crate) fn enforce_lamport_once(pubkey: &[u8]) -> Result<(), String> {
     XMSS_STATE.with(|s| match s.borrow_mut().as_mut() {
         Some(state) => state.check_and_observe_lamport(pubkey),
+        None => Ok(()),
+    })
+}
+
+/// Enforce leaf-index monotonicity for one verified merkle-tree Lamport
+/// signature. `index` is the consumed leaf index from the `MtSignature` wire
+/// data (byte 1). No-op (returns `Ok`) when no enforcement guard is installed.
+pub(crate) fn enforce_lamport_merkle(pubkey: &[u8], index: usize) -> Result<(), String> {
+    XMSS_STATE.with(|s| match s.borrow_mut().as_mut() {
+        Some(state) => state.check_and_observe_merkle(pubkey, index),
         None => Ok(()),
     })
 }
@@ -244,5 +289,67 @@ mod tests {
         }
         // guard dropped → enforcement disabled again
         assert!(enforce_xmss_index(K1, 0).is_ok());
+    }
+
+    #[test]
+    fn merkle_monotonic_index_per_key() {
+        let mut s = XmssIndexState::default();
+        // first use of a merkle key at leaf 0 is allowed
+        assert!(s.check_and_observe_merkle(K1, 0).is_ok());
+        s.commit();
+        // reusing leaf 0 for the same key is rejected
+        assert!(s.check_and_observe_merkle(K1, 0).is_err());
+        s.discard();
+        // the next leaf in order is allowed
+        assert!(s.check_and_observe_merkle(K1, 1).is_ok());
+        s.commit();
+        // rolling back to a consumed leaf is rejected
+        assert!(s.check_and_observe_merkle(K1, 0).is_err());
+        assert!(s.check_and_observe_merkle(K1, 1).is_err());
+        // a different merkle key is tracked independently
+        assert!(s.check_and_observe_merkle(K2, 0).is_ok());
+    }
+
+    #[test]
+    fn merkle_same_index_within_one_entry_is_tolerated_until_commit() {
+        // a lock-script retry may re-observe the same (key, leaf) before commit
+        let mut s = XmssIndexState::default();
+        assert!(s.check_and_observe_merkle(K1, 1).is_ok());
+        assert!(s.check_and_observe_merkle(K1, 1).is_ok());
+        s.commit();
+        assert!(s.check_and_observe_merkle(K1, 1).is_err());
+    }
+
+    #[test]
+    fn merkle_observations_only_count_after_commit() {
+        let mut s = XmssIndexState::default();
+        // observe leaf 1 but do NOT commit (entry failed)
+        assert!(s.check_and_observe_merkle(K1, 1).is_ok());
+        s.discard();
+        // leaf 0 is still allowed because 1 was never committed
+        assert!(s.check_and_observe_merkle(K1, 0).is_ok());
+    }
+
+    #[test]
+    fn merkle_enforce_is_noop_without_installed_guard() {
+        assert!(enforce_lamport_merkle(K1, 0).is_ok());
+        assert!(enforce_lamport_merkle(K1, 0).is_ok());
+    }
+
+    #[test]
+    fn merkle_raii_guard_installs_and_restores() {
+        assert!(enforce_lamport_merkle(K1, 5).is_ok()); // no guard → ok
+        {
+            let guard = XmssEnforcement::install();
+            assert!(enforce_lamport_merkle(K1, 0).is_ok());
+            guard.commit_entry();
+            // reuse now rejected while guard is installed
+            assert!(enforce_lamport_merkle(K1, 0).is_err());
+            // strictly greater leaf is accepted
+            assert!(enforce_lamport_merkle(K1, 1).is_ok());
+            guard.discard_entry();
+        }
+        // guard dropped → enforcement disabled again
+        assert!(enforce_lamport_merkle(K1, 0).is_ok());
     }
 }
