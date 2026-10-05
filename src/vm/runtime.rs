@@ -2,8 +2,14 @@
 
 //! Reusable Wasmtime compilation state.
 
-use crate::{api, error::VmError, Context, Error};
+use crate::{
+    api,
+    error::VmError,
+    vm::component::{lock_world, unlock_world},
+    Context, Error,
+};
 use std::sync::{Arc, OnceLock};
+use wasmtime::component::{Component, HasSelf, Linker as ComponentLinker};
 use wasmtime::{Config, Engine, Linker, Module};
 
 use super::ModuleCache;
@@ -12,9 +18,15 @@ use super::ModuleCache;
 ///
 /// The engine, linker definitions, and compiled modules are reusable. Each
 /// [`crate::Instance`] still owns a separate store, context, and fuel budget.
+///
+/// One engine serves both execution models: core WASM modules and WASM
+/// components. The component linker registers the typed
+/// `cryptid:wacc/host@1.0.0` interface for both script worlds; the worlds
+/// import the identical interface set, so either registration satisfies them.
 pub struct Runtime {
     engine: Engine,
     linker: Arc<Linker<Context>>,
+    component_linker: Arc<ComponentLinker<Context>>,
     modules: ModuleCache,
 }
 
@@ -35,14 +47,32 @@ impl Runtime {
     pub fn with_cache_capacity(max_entries: usize) -> Result<Self, Error> {
         let mut config = Config::default();
         config.consume_fuel(true);
+        config.wasm_component_model(true);
         let engine = Engine::new(&config).map_err(Error::from_wasmtime)?;
 
         let mut linker = Linker::new(&engine);
         api::add_to_linker(&engine, &mut linker)?;
 
+        // Both script worlds import the same typed `cryptid:wacc/host` items,
+        // so the second registration overwrites an identical first one;
+        // `allow_shadowing` makes that deterministic re-registration legal.
+        let mut component_linker = ComponentLinker::new(&engine);
+        component_linker.allow_shadowing(true);
+        unlock_world::UnlockScript::add_to_linker::<Context, HasSelf<Context>>(
+            &mut component_linker,
+            |context| context,
+        )
+        .map_err(Error::from_wasmtime)?;
+        lock_world::LockScript::add_to_linker::<Context, HasSelf<Context>>(
+            &mut component_linker,
+            |context| context,
+        )
+        .map_err(Error::from_wasmtime)?;
+
         Ok(Self {
             engine,
             linker: Arc::new(linker),
+            component_linker: Arc::new(component_linker),
             modules: ModuleCache::with_capacity(max_entries),
         })
     }
@@ -50,6 +80,11 @@ impl Runtime {
     /// Returns the number of compiled modules currently cached.
     pub fn cached_module_count(&self) -> usize {
         self.modules.len()
+    }
+
+    /// Returns the number of compiled components currently cached.
+    pub fn cached_component_count(&self) -> usize {
+        self.modules.component_len()
     }
 
     /// Compiles and prepares bytecode for repeated instance construction.
@@ -68,6 +103,10 @@ impl Runtime {
         self.linker.as_ref().clone()
     }
 
+    pub(crate) fn component_linker(&self) -> ComponentLinker<Context> {
+        self.component_linker.as_ref().clone()
+    }
+
     pub(crate) fn compile(&self, bytes: &[u8]) -> Result<Arc<Module>, Error> {
         if let Some(module) = self.modules.get_bytes(bytes) {
             return Ok(module);
@@ -79,6 +118,25 @@ impl Runtime {
         let module = Arc::new(module);
         self.modules.insert_bytes(bytes, Arc::clone(&module));
         Ok(module)
+    }
+
+    /// Compiles a WASM component for repeated instance construction.
+    ///
+    /// Mirrors [`Self::compile`]: components are cached by the digest of their
+    /// source bytes in their own bounded map.
+    pub(crate) fn compile_component(&self, bytes: &[u8]) -> Result<Arc<Component>, Error> {
+        if let Some(component) = self.modules.get_component_bytes(bytes) {
+            return Ok(component);
+        }
+
+        let component =
+            Component::new(&self.engine, bytes).map_err(|e| VmError::CompilationError {
+                message: format!("failed to compile WASM component: {e}"),
+            })?;
+        let component = Arc::new(component);
+        self.modules
+            .insert_component_bytes(bytes, Arc::clone(&component));
+        Ok(component)
     }
 }
 
@@ -144,5 +202,28 @@ mod tests {
 
         assert!(Arc::ptr_eq(&runtime, &prepared.runtime));
         assert_eq!(runtime.cached_module_count(), 1);
+    }
+
+    const SIMPLE_COMPONENT: &[u8] = b"(component)";
+
+    #[test]
+    fn reuses_compiled_component() {
+        let runtime = Runtime::new().unwrap();
+
+        let first = runtime.compile_component(SIMPLE_COMPONENT).unwrap();
+        let second = runtime.compile_component(SIMPLE_COMPONENT).unwrap();
+
+        assert!(Arc::ptr_eq(&first, &second));
+        assert_eq!(runtime.cached_component_count(), 1);
+        // component caching leaves the module count untouched
+        assert_eq!(runtime.cached_module_count(), 0);
+    }
+
+    #[test]
+    fn does_not_cache_failed_component_compilation() {
+        let runtime = Runtime::new().unwrap();
+
+        assert!(runtime.compile_component(b"not wasm").is_err());
+        assert_eq!(runtime.cached_component_count(), 0);
     }
 }

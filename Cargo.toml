@@ -24,6 +24,7 @@ multi-util = "1.1"
 thiserror = "2.0"
 tracing = "0.1"
 wasmtime = { version = "48.0", default-features = false, features = [
+    "component-model",
     "cranelift",
     "parallel-compilation",
     "runtime",
@@ -79,6 +80,10 @@ path = "tests/edge_cases.rs"
 [[test]]
 name = "property_tests"
 path = "tests/property_tests.rs"
+
+[[test]]
+name = "component"
+path = "tests/component.rs"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

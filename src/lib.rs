@@ -135,7 +135,9 @@ pub mod types;
 
 /// The virtual machine for executing WACC code
 pub mod vm;
-pub use vm::{Builder, Context, Instance, PreparedModule, Runtime, Value};
+pub use vm::{
+    Builder, ComponentInstance, Context, Instance, PreparedModule, Runtime, ScriptKind, Value,
+};
 
 /// ...and in the darkness bind them
 pub mod prelude {
