@@ -7,7 +7,7 @@
     clippy::cast_sign_loss
 )]
 // SPDX-License-Identifier: Apache-2.0
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, fs::read, path::PathBuf, sync::Arc};
 use test_log::test;
 use tracing::info;
 use wacc::error::VmError;
@@ -15,6 +15,7 @@ use wacc::storage::{Pairs, Stack};
 use wacc::types::{CheckCount, ContextPath};
 use wacc::vm::{Builder, Context, Value};
 use wacc::{Error, Runtime, ScriptKind};
+use wasmparser::{Parser, Payload};
 use wasmtime::StoreLimitsBuilder;
 
 const MEMORY_LIMIT: usize = 1 << 22; /* 4MB */
@@ -179,6 +180,46 @@ fn build_component(component_wat: &[u8], context: Context) -> wacc::vm::Componen
     }
 }
 
+/// Loads a built guest component fixture; guests live as separate Cargo
+/// projects under `examples/wacc/` and the Makefile copies their components
+/// into the crate's `target/components/` directory.
+fn load_component(file_name: &str) -> Option<Vec<u8>> {
+    let mut pb = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    pb.push("target/components");
+    pb.push(file_name);
+    info!("trying to load: {}", pb.as_os_str().display());
+    read(&pb).ok()
+}
+
+/// Builds a [`Context`] for the `abi` guest fixture: `/abi/` resolves in the
+/// current KVP and the branch prefix makes the composed key-path distinctive.
+fn make_abi_context() -> Context {
+    let mut current = Kvp::default();
+    current.put(
+        "/abi/",
+        &Value::Bin {
+            hint: String::new(),
+            data: Arc::from(vec![1, 2, 3].into_boxed_slice()),
+        },
+    );
+
+    Context {
+        current: Box::new(current),
+        proposed: Box::new(Kvp::default()),
+        pstack: Box::new(Stk::default()),
+        rstack: Box::new(Stk::default()),
+        check_count: CheckCount::zero(),
+        write_idx: 0,
+        context: ContextPath::new("/forks/child/"),
+        log: Vec::default(),
+        limiter: StoreLimitsBuilder::new()
+            .memory_size(MEMORY_LIMIT)
+            .instances(16)
+            .memories(8)
+            .build(),
+    }
+}
+
 #[test]
 fn test_component_unlock_runs_with_both_export_spellings() {
     let wat = script_component_wat("for-great-justice");
@@ -327,4 +368,136 @@ fn test_script_kind_detects_wat_component_text() {
     // and checking the text rule against the same artifact's wat form
     let wat = script_component_wat("for-great-justice");
     assert_eq!(ScriptKind::detect(&wat), Some(ScriptKind::Component));
+}
+
+/// Component whose guest burns fuel in a bounded-counter loop so large it
+/// exhausts any practical fuel budget before reaching its exit, so the typed
+/// export call traps with the store's fuel limit.
+const INFINITE_LOOP_COMPONENT_WAT: &[u8] = br#"(component
+  (core module $guest
+    (func (export "run") (result i32)
+      (local $i i64)
+      (loop $burn
+        (local.set $i (i64.add (local.get $i) (i64.const 1)))
+        (br_if $burn (i64.lt_u (local.get $i) (i64.const 4611686018427387904)))
+      )
+      (i32.const 1)
+    )
+  )
+  (core instance $inst (instantiate $guest))
+  (alias core export $inst "run" (core func $run))
+  (type $exit (func (result s32)))
+  (func $entry (type $exit) (canon lift (core func $run)))
+  (export "for-great-justice" (func $entry))
+)"#;
+
+#[test]
+fn test_fuel_exhaustion_traps_on_the_component_path() {
+    let mut component = build_component(INFINITE_LOOP_COMPONENT_WAT, make_context());
+
+    let result = component.run("for_great_justice");
+    assert!(matches!(
+        result,
+        Err(Error::Vm(VmError::ExecutionError { .. }))
+    ));
+}
+
+#[test]
+fn test_abi_guest_fixture_round_trips_the_typed_imports() {
+    // Skip test if the component fixture is not built (run 'make -C
+    // examples/wacc/wast guests')
+    let Some(bytes) = load_component("abi.wasm") else {
+        eprintln!(
+            "Skipping test_abi_guest_fixture_round_trips_the_typed_imports: abi.wasm not found"
+        );
+        return;
+    };
+
+    let mut component = build_component(&bytes, make_abi_context());
+
+    assert!(component.run("for_great_justice").unwrap());
+
+    // push and push-value both landed on the parameter stack: the kvp-backed
+    // value first, then the raw guest bytes
+    assert_eq!(component.store.data().pstack.len(), 2);
+    assert_eq!(
+        component.store.data().pstack.top(),
+        Some(Value::Bin {
+            hint: String::new(),
+            data: Arc::from(vec![0xAB, 0xCD].into_boxed_slice())
+        })
+    );
+    assert_eq!(
+        component.store.data().pstack.peek(1),
+        Some(Value::Bin {
+            hint: String::new(),
+            data: Arc::from(vec![1, 2, 3].into_boxed_slice())
+        })
+    );
+
+    // the four stateless checks each left a failure marker on the return stack
+    // and incremented the check counter once
+    assert_eq!(component.store.data().rstack.len(), 4);
+    for value in [
+        component.store.data().rstack.peek(0),
+        component.store.data().rstack.peek(1),
+        component.store.data().rstack.peek(2),
+        component.store.data().rstack.peek(3),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        assert!(matches!(value, Value::Failure { .. }));
+    }
+    assert_eq!(component.store.data().check_count.as_usize(), 4);
+
+    // branch returned the composed key-path through the guest realloc path
+    // and the guest logged it back along with its own line
+    let log = String::from_utf8(component.log()).unwrap();
+    assert!(log.contains("/forks/child//abi/proof"), "log: {log:?}");
+    assert!(log.contains("/abi/log-line"), "log: {log:?}");
+}
+
+/// The guest fixture components, built by `make -C examples/wacc/wast guests`.
+const GUEST_FIXTURES: [&str; 5] = ["abi", "unlock", "log", "signature_lock", "signature_first"];
+
+/// Checks every built fixture component imports only the typed
+/// `cryptid:wacc/host@1.0.0` interface, so the no-WASI property of the guest
+/// recipe stays verified.
+#[test]
+fn test_fixture_components_import_only_the_typed_host_interface() {
+    let mut checked: usize = 0;
+    for name in GUEST_FIXTURES {
+        let Some(bytes) = load_component(&format!("{name}.wasm")) else {
+            eprintln!(
+                "Skipping {name}.wasm: fixture not found (run 'make -C examples/wacc/wast guests')"
+            );
+            continue;
+        };
+
+        let mut imports: Vec<String> = Vec::new();
+        for payload in Parser::new(0).parse_all(&bytes) {
+            // component-level imports: the fixture guests import the typed
+            // `cryptid:wacc/host@1.0.0` interface instance and nothing else.
+            // The core modules embedded inside the component have their own
+            // import sections and are not part of the guest's host surface.
+            if let Payload::ComponentImportSection(reader) = payload.unwrap() {
+                for import in reader {
+                    imports.push(import.unwrap().name.name.to_string());
+                }
+            }
+        }
+
+        assert!(
+            imports.iter().all(|module| !module.starts_with("wasi:")),
+            "{name} imports a WASI interface: {imports:?}"
+        );
+        assert_eq!(
+            imports,
+            vec!["cryptid:wacc/host@1.0.0".to_string()],
+            "{name} unexpected import set"
+        );
+        checked += 1;
+    }
+    eprintln!("checked {checked} fixture component(s) for import hygiene");
 }

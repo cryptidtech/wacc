@@ -36,6 +36,7 @@ wasmtime = { version = "48.0", default-features = false, features = [
 hex = "0.4"
 proptest = "1.11"
 test-log = { version = "0.2", features = ["trace", "color"] }
+wasmparser = "0.254"
 
 [[test]]
 name = "log"

@@ -51,7 +51,6 @@
         )
       )
     )
-    ;; check_version failed so return false
     i32.const 0
     return
   )

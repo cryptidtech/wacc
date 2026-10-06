@@ -20,6 +20,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: wasm32-wasip2
 
       - name: Check Code Format
         run: cargo fmt --all -- --check
@@ -29,6 +30,9 @@ jobs:
 
       - name: Build
         run: cargo build --verbose
+
+      - name: Build Script Fixtures
+        run: make -C examples/wacc/wast guests
 
       - name: Run tests
         run: cargo test --verbose
