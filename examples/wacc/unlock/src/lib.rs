@@ -1,18 +1,65 @@
-#[link(wasm_import_module = "wacc")]
-extern "C" {
-    fn _push(ptr: *const u8, len: usize) -> bool;
+#![no_std]
+
+use dlmalloc::GlobalDlmalloc;
+
+#[global_allocator]
+static ALLOCATOR: GlobalDlmalloc = GlobalDlmalloc;
+
+#[panic_handler]
+fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
+    core::arch::wasm32::unreachable()
 }
 
-fn push(key: &str) -> bool {
-    unsafe { _push(key.as_ptr(), key.len()) }
+// The component canonical ABI allocates host-to-guest return buffers through a
+// `cabi_realloc` core export. wit-bindgen's runtime omits this export for
+// wasm32-wasip2 targets, so the guest supplies it over its global allocator.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cabi_realloc(
+    old_ptr: *mut u8,
+    old_len: usize,
+    align: usize,
+    new_len: usize,
+) -> *mut u8 {
+    use core::alloc::{GlobalAlloc, Layout};
+
+    let ptr = if old_len == 0 {
+        if new_len == 0 {
+            return align as *mut u8;
+        }
+        ALLOCATOR.alloc(Layout::from_size_align_unchecked(new_len, align))
+    } else {
+        debug_assert_ne!(new_len, 0, "non-zero old_len requires non-zero new_len!");
+        ALLOCATOR.realloc(
+            old_ptr,
+            Layout::from_size_align_unchecked(old_len, align),
+            new_len,
+        )
+    };
+    if ptr.is_null() {
+        core::arch::wasm32::unreachable();
+    }
+    ptr
 }
 
-#[no_mangle]
-pub fn for_great_justice() -> bool {
-    // push "/entry/"
-    push("/entry/");
-    // push "/entry/proof"
-    push("/entry/proof");
+wit_bindgen::generate!({
+    world: "unlock-script",
+    path: "../../../wit/wacc.wit",
+});
 
-    true
+struct Component;
+
+impl Guest for Component {
+    fn for_great_justice() -> i32 {
+        use crate::cryptid::wacc::host::push;
+
+        let first = push("/entry/");
+        let second = push("/entry/proof");
+        if first && second {
+            1
+        } else {
+            0
+        }
+    }
 }
+
+export!(Component);

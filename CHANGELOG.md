@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-10-06
+
+### Added
+
+- WASM Component Model support for scripts. An added `wit/wacc.wit` declares the WIT package `cryptid:wacc@1.0.0` with the typed `host` interface and the two script worlds `unlock-script` (export `for-great-justice`) and `lock-script` (export `move-every-zig`); the eight typed host functions carry the same semantics as the eight raw-ABI core-module imports, and the component path also accepts the legacy snake-case export names through the added export-name map.
+- `ScriptKind` with the variants `Module` and `Component`, and `ScriptKind::detect(bytes)`: binary detection by the version byte after the `\0asm` magic and text detection by the leading WAT token. Re-exported from the crate root.
+- A blake3-keyed component cache in the public `ModuleCache` (`insert_component_bytes` / `get_component_bytes`, a second bounded map) and the `Runtime::cached_component_count()` accessor; component compilation runs through the internal `Runtime::compile_component`, mirroring the internal `Runtime::compile` on the module path.
+- `Builder::with_component_bytes` and `Builder::try_build_component`, producing a `vm::ComponentInstance` with a public `store`, `run`, and `log`, mirroring the module path's fuel and store-limit flow. Typed host imports are generated with `wasmtime::component::bindgen!` and registered once on the runtime's component linker for both worlds, so script components import only `cryptid:wacc/host@1.0.0`.
+
+### Changed
+
+- The `wasmtime` dependency gains the `component-model` feature; the dependency stays at version `48.0`.
+- `Builder::try_build` now rejects detectable component bytes with `VmError::ScriptKindMismatch` instead of a generic compilation error, and `Builder::try_build_component` rejects detectable module bytes symmetrically.
+
+### Notes
+
+- 2.1.2 shipped without a changelog entry.
+
 ## [2.1.1] - 2026-09-02
 
 ### Changed
@@ -78,6 +96,7 @@ different from 1.0.5.
 
 - Previous standalone release. Used `wasmtime 19.0`, `thiserror 1.0`, and FSL-1.1 license. Git deps for `multicid`, `multihash`, `multikey`, `multisig`, `multitrait`, `multiutil`.
 
+[2.2.0]: https://github.com/cryptidtech/wacc/compare/v2.1.2...v2.2.0
 [2.1.1]: https://github.com/cryptidtech/wacc/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/cryptidtech/wacc/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/cryptidtech/wacc/releases/tag/v2.0.0

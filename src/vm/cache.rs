@@ -8,12 +8,13 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use wasmtime::component::Component;
 use wasmtime::Module;
 
-/// A cache for compiled WASM modules
+/// A cache for compiled WASM modules and components
 ///
-/// This cache stores compiled modules keyed by their source bytes hash,
-/// allowing reuse of expensive compilation results.
+/// This cache stores compiled modules and components keyed by their source
+/// bytes hash, allowing reuse of expensive compilation results.
 ///
 /// # Thread Safety
 ///
@@ -31,6 +32,7 @@ use wasmtime::Module;
 pub struct ModuleCache {
     cache: RwLock<HashMap<u64, Arc<Module>>>,
     byte_cache: RwLock<HashMap<[u8; 32], Arc<Module>>>,
+    component_cache: RwLock<HashMap<[u8; 32], Arc<Component>>>,
     max_entries: usize,
 }
 
@@ -50,6 +52,7 @@ impl ModuleCache {
         Self {
             cache: RwLock::new(HashMap::with_capacity(max_entries.min(100))),
             byte_cache: RwLock::new(HashMap::with_capacity(max_entries.min(100))),
+            component_cache: RwLock::new(HashMap::with_capacity(max_entries.min(100))),
             max_entries,
         }
     }
@@ -94,6 +97,35 @@ impl ModuleCache {
         }
     }
 
+    /// Gets a compiled component keyed by the collision-resistant digest of its bytes.
+    pub fn get_component_bytes(&self, bytes: &[u8]) -> Option<Arc<Component>> {
+        self.component_cache
+            .read()
+            .ok()?
+            .get(&Self::digest_bytes(bytes))
+            .cloned()
+    }
+
+    /// Inserts a compiled component keyed by the collision-resistant digest of
+    /// its bytes.
+    ///
+    /// The component cache is bounded by the same `max_entries` limit
+    /// independently of the module caches. If the cache is full, this is a
+    /// no-op (simple eviction strategy).
+    pub fn insert_component_bytes(&self, bytes: &[u8], component: Arc<Component>) {
+        if self.component_len() >= self.max_entries {
+            return;
+        }
+        if let Ok(mut cache) = self.component_cache.write() {
+            cache.insert(Self::digest_bytes(bytes), component);
+        }
+    }
+
+    /// Returns the number of cached components
+    pub fn component_len(&self) -> usize {
+        self.component_cache.read().map_or(0, |c| c.len())
+    }
+
     /// Returns the number of cached modules
     pub fn len(&self) -> usize {
         let keyed = self.cache.read().map_or(0, |c| c.len());
@@ -106,12 +138,15 @@ impl ModuleCache {
         self.len() == 0
     }
 
-    /// Clears all cached modules
+    /// Clears all cached modules and components
     pub fn clear(&self) {
         if let Ok(mut cache) = self.cache.write() {
             cache.clear();
         }
         if let Ok(mut cache) = self.byte_cache.write() {
+            cache.clear();
+        }
+        if let Ok(mut cache) = self.component_cache.write() {
             cache.clear();
         }
     }
@@ -205,5 +240,52 @@ mod tests {
         let module3 = Module::new(&engine, SIMPLE_WASM).unwrap();
         cache.insert(3, Arc::new(module3));
         assert_eq!(cache.len(), 2); // Should still be 2
+    }
+
+    const SIMPLE_COMPONENT: &[u8] = b"(component)";
+
+    fn component_engine() -> Engine {
+        let mut config = Config::default();
+        config.wasm_component_model(true);
+        Engine::new(&config).unwrap()
+    }
+
+    #[test]
+    fn test_component_cache_round_trip() {
+        let cache = ModuleCache::new();
+        assert!(cache.get_component_bytes(SIMPLE_COMPONENT).is_none());
+
+        let engine = component_engine();
+        let component = Component::new(&engine, SIMPLE_COMPONENT).unwrap();
+
+        cache.insert_component_bytes(SIMPLE_COMPONENT, Arc::new(component));
+
+        let cached = cache.get_component_bytes(SIMPLE_COMPONENT);
+        assert!(cached.is_some());
+        assert_eq!(cache.component_len(), 1);
+        assert_eq!(cache.len(), 0); // modules remain counted separately
+
+        cache.clear();
+        assert_eq!(cache.component_len(), 0);
+    }
+
+    #[test]
+    fn test_component_cache_capacity_independent() {
+        let cache = ModuleCache::with_capacity(1);
+        let engine = component_engine();
+        let component = Component::new(&engine, SIMPLE_COMPONENT).unwrap();
+
+        cache.insert_component_bytes(SIMPLE_COMPONENT, Arc::new(component));
+
+        // the component cache is full, so another insert is rejected
+        let component2 = Component::new(&engine, SIMPLE_COMPONENT).unwrap();
+        cache.insert_component_bytes(SIMPLE_COMPONENT, Arc::new(component2));
+        assert_eq!(cache.component_len(), 1);
+
+        // an unrelated module still fits its own bound
+        let module = Module::new(&engine, SIMPLE_WASM).unwrap();
+        cache.insert(ModuleCache::hash_bytes(SIMPLE_WASM), Arc::new(module));
+        assert_eq!(cache.len(), 1);
+        assert_eq!(cache.component_len(), 1);
     }
 }

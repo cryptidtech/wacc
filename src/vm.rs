@@ -3,6 +3,9 @@
 /// virtual machine builder
 pub mod builder;
 
+/// WASM Component Model script support
+pub mod component;
+
 /// module caching for performance
 pub mod cache;
 
@@ -27,6 +30,7 @@ pub mod xmss_guard;
 pub use builder::Builder;
 pub use cache::ModuleCache;
 pub use compiler::Compiler;
+pub use component::{ComponentInstance, ScriptKind};
 pub use context::Context;
 pub use instance::Instance;
 pub use runtime::{PreparedModule, Runtime};

@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    error::VmError, security::SecurityLimits, types::FuelAmount, vm::runtime::default_runtime,
+    error::VmError,
+    security::SecurityLimits,
+    types::FuelAmount,
+    vm::runtime::default_runtime,
+    vm::{ComponentInstance, ScriptKind},
     Context, Error, Instance, PreparedModule, Runtime,
 };
 use std::sync::Arc;
@@ -203,6 +207,18 @@ impl Builder {
         self
     }
 
+    /// Initializes the bytes to execute as a WASM component
+    ///
+    /// The bytes are compiled and instantiated through
+    /// [`Self::try_build_component()`]. Feeding detectable module bytes here
+    /// makes [`Self::try_build_component()`] fail with
+    /// [`VmError::ScriptKindMismatch`], mirroring the guard that
+    /// [`Self::try_build()`] applies to detectable component bytes.
+    pub fn with_component_bytes(mut self, bytes: impl AsRef<[u8]>) -> Self {
+        self.bytes = bytes.as_ref().to_vec();
+        self
+    }
+
     /// Add the context for the application state
     #[must_use]
     pub fn with_context(mut self, context: Context) -> Self {
@@ -229,25 +245,16 @@ impl Builder {
     /// Tries to build the [`Instance`] from the builder configuration
     ///
     /// This method enforces security limits and validates all configuration.
-    pub fn try_build(self) -> Result<Instance, Error> {
-        // Validate fuel against security limits
-        let fuel = match self.fuel {
-            Some(f) => {
-                if f.as_u64() > self.security_limits.max_fuel.as_u64() {
-                    return Err(Error::custom(&format!(
-                        "fuel {} exceeds security limit {}",
-                        f, self.security_limits.max_fuel
-                    )));
-                }
-                f
-            }
-            None => {
-                // Default to security limits fuel
-                self.security_limits.max_fuel
-            }
-        };
+    ///
+    /// Detectable WASM component bytes are rejected with
+    /// [`VmError::ScriptKindMismatch`]; only [`Self::try_build_component()`]
+    /// executes components.
+    pub fn try_build(mut self) -> Result<Instance, Error> {
+        self.reject_kind_mismatch(ScriptKind::Module)?;
 
-        let (runtime, module) = if let Some(prepared) = self.prepared_module {
+        let fuel = self.validated_fuel()?;
+
+        let (runtime, module) = if let Some(prepared) = self.prepared_module.take() {
             if self
                 .runtime
                 .as_ref()
@@ -259,7 +266,7 @@ impl Builder {
             }
             (prepared.runtime, prepared.module)
         } else {
-            let runtime = match self.runtime {
+            let runtime = match self.runtime.take() {
                 Some(runtime) => runtime,
                 None => default_runtime()?,
             };
@@ -267,16 +274,7 @@ impl Builder {
             (runtime, module)
         };
 
-        // get the context
-        let context = match self.context {
-            Some(ctx) => ctx,
-            None => {
-                return Err(VmError::MissingContext {
-                    context: "Builder requires context to be set via with_context()".to_string(),
-                }
-                .into())
-            }
-        };
+        let context = self.required_context()?;
 
         // configure the store with fuel (now mandatory for security)
         let mut store = Store::new(runtime.engine(), context);
@@ -293,5 +291,92 @@ impl Builder {
             module: module.as_ref().clone(),
             store,
         })
+    }
+
+    /// Tries to build the [`ComponentInstance`] from the builder configuration
+    ///
+    /// Mirrors [`Self::try_build()`]: the same fuel validation, context
+    /// requirements, security limits, and store setup apply. The component is
+    /// instantiated against the runtime's component linker, which provides the
+    /// typed `cryptid:wacc/host@1.0.0` interface for both script worlds.
+    ///
+    /// A caller-provided [`PreparedModule`] does not apply here:
+    /// [`PreparedModule`] carries compiled core modules only, so this method
+    /// always compiles `self.bytes`.
+    ///
+    /// Detectable core-module bytes are rejected with
+    /// [`VmError::ScriptKindMismatch`]; only [`Self::try_build()`] executes
+    /// modules.
+    pub fn try_build_component(mut self) -> Result<ComponentInstance, Error> {
+        self.reject_kind_mismatch(ScriptKind::Component)?;
+
+        let fuel = self.validated_fuel()?;
+
+        let runtime = match self.runtime.take() {
+            Some(runtime) => runtime,
+            None => default_runtime()?,
+        };
+        let component = runtime.compile_component(&self.bytes)?;
+
+        let context = self.required_context()?;
+
+        // configure the store with fuel
+        let mut store = Store::new(runtime.engine(), context);
+        store
+            .set_fuel(fuel.as_u64())
+            .map_err(Error::from_wasmtime)?;
+
+        // configure the limiter
+        store.limiter(|state| &mut state.limiter);
+
+        // instantiate the component and bind the instance
+        let instance = runtime
+            .component_linker()
+            .instantiate(&mut store, component.as_ref())
+            .map_err(|e| VmError::InstantiationError {
+                message: format!("failed to instantiate WASM component: {e}"),
+            })?;
+
+        Ok(ComponentInstance::new(instance, store))
+    }
+
+    /// Returns the fuel to install, validated against the security limits
+    fn validated_fuel(&self) -> Result<FuelAmount, Error> {
+        match self.fuel {
+            Some(f) => {
+                if f.as_u64() > self.security_limits.max_fuel.as_u64() {
+                    return Err(Error::custom(&format!(
+                        "fuel {} exceeds security limit {}",
+                        f, self.security_limits.max_fuel
+                    )));
+                }
+                Ok(f)
+            }
+            None => {
+                // Default to security limits fuel
+                Ok(self.security_limits.max_fuel)
+            }
+        }
+    }
+
+    /// Returns the context required by every build path, failing otherwise
+    fn required_context(&mut self) -> Result<Context, Error> {
+        self.context.take().ok_or_else(|| {
+            VmError::MissingContext {
+                context: "Builder requires context to be set via with_context()".to_string(),
+            }
+            .into()
+        })
+    }
+
+    /// Rejects input whose detected script kind does not match the kind the
+    /// targeted build path executes
+    fn reject_kind_mismatch(&self, expected: ScriptKind) -> Result<(), Error> {
+        match ScriptKind::detect(&self.bytes) {
+            Some(actual) if actual != expected => {
+                Err(VmError::ScriptKindMismatch { expected, actual }.into())
+            }
+            _ => Ok(()),
+        }
     }
 }

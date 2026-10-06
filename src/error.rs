@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::vm::component::ScriptKind;
+
 /// Errors created by this library
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -185,5 +187,15 @@ pub enum VmError {
         function: String,
         /// Error message (includes source error details)
         message: String,
+    },
+
+    /// The script kind detected in the bytes does not match the kind that the
+    /// targeted build or call path executes
+    #[error("script kind mismatch: expected {expected}, found {actual}")]
+    ScriptKindMismatch {
+        /// The script kind supported by the targeted execution path
+        expected: ScriptKind,
+        /// The script kind detected in the input bytes
+        actual: ScriptKind,
     },
 }

@@ -42,17 +42,33 @@ pub unsafe extern "C" fn cabi_realloc(
 }
 
 wit_bindgen::generate!({
-    world: "lock-script",
+    world: "unlock-script",
     path: "../../../wit/wacc.wit",
 });
 
 struct Component;
 
 impl Guest for Component {
-    fn move_every_zig() -> i32 {
-        use crate::cryptid::wacc::host::check_signature;
+    fn for_great_justice() -> i32 {
+        use crate::cryptid::wacc::host::{
+            branch, check_eq, check_preimage, check_preimage_value, check_signature, log, push,
+            push_value,
+        };
 
-        if check_signature("ephemeral", "/entry/") {
+        let push_ok = push("/abi/");
+        let push_value_ok = push_value(&[0xAB, 0xCD]);
+        let branch_result = branch("/abi/proof");
+        let log_branch_ok = log(&branch_result);
+
+        // Each check is expected to fail without matching state; the calls
+        // exercise the host-side lowering of every import signature.
+        let _ = check_eq("/abi/nonexistent");
+        let _ = check_preimage("/abi/nonexistent");
+        let _ = check_preimage_value(&[0x00, 0x12, 0x34], "/abi/nonexistent");
+        let _ = check_signature("/abi/nonexistent", "/abi/nonexistent-msg");
+
+        let log_ok = log("/abi/log-line");
+        if push_ok && push_value_ok && log_branch_ok && log_ok && !branch_result.is_empty() {
             1
         } else {
             0
