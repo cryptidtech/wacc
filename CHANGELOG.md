@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-10-07
+
+### Changed
+
+- Migrated the `check_signature`, `check_preimage_value`, and `enforce_stateful_key_rules` host functions and `MulticodecSignatureVerifier` from `multi_key::Views` and `multi_sig::Views` to `ViewBuilder`. No public API changes.
+- Updated dependencies: `multi-codec` 1.3 → 1.5, `multi-key` 1.2 → 2.1, `multi-sig` 1.3 → 1.5, `wasmtime` 48.0 → 49.0, `wasmparser` 0.254 → 0.261, `blake3` 1.8.1 → 1.8.
+
 ## [2.2.0] - 2026-10-06
 
 ### Added
@@ -96,6 +103,7 @@ different from 1.0.5.
 
 - Previous standalone release. Used `wasmtime 19.0`, `thiserror 1.0`, and FSL-1.1 license. Git deps for `multicid`, `multihash`, `multikey`, `multisig`, `multitrait`, `multiutil`.
 
+[2.2.1]: https://github.com/cryptidtech/wacc/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/cryptidtech/wacc/compare/v2.1.2...v2.2.0
 [2.1.1]: https://github.com/cryptidtech/wacc/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/cryptidtech/wacc/compare/v2.0.0...v2.1.0

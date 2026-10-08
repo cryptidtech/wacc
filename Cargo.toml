@@ -1,6 +1,6 @@
 [package]
 name = "wacc"
-version = "2.2.0"
+version = "2.2.1"
 edition = "2021"
 rust-version = "1.96"
 authors = ["Dave Grantham <dwg@linuxprogrammer.org>"]
@@ -17,8 +17,8 @@ log = "0.4"
 multi-cid = "0.2"
 multi-codec = "1.5"
 multi-hash = "1.1"
-multi-key = "2.0"
-multi-sig = "1.4"
+multi-key = "2.1"
+multi-sig = "1.5"
 multi-trait = "1.0"
 multi-util = "1.1"
 thiserror = "2.0"
