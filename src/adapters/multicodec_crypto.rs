@@ -10,7 +10,7 @@ use crate::{
     security::allowed_algorithms,
 };
 use multi_hash::{mh, Multihash};
-use multi_key::{Multikey, Views};
+use multi_key::{Multikey, ViewBuilder};
 use multi_sig::Multisig;
 use multi_util::CodecInfo;
 
@@ -77,9 +77,12 @@ impl SignatureVerifier for MulticodecSignatureVerifier {
         })?;
 
         // Get verification view
-        let verify_view = public_key.verify_view().map_err(|e| {
-            CryptoError::InvalidPublicKey(format!("Failed to get verify view: {e}"))
-        })?;
+        let verify_view = ViewBuilder::new(&public_key)
+            .verify()
+            .build()
+            .map_err(|e| {
+                CryptoError::InvalidPublicKey(format!("Failed to get verify view: {e}"))
+            })?;
 
         // Verify signature
         verify_view

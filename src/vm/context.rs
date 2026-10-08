@@ -8,8 +8,8 @@ use crate::{
 use log::info;
 use multi_codec::Codec;
 use multi_hash::{mh, Multihash};
-use multi_key::{Multikey, Views};
-use multi_sig::{Multisig, Views as _};
+use multi_key::{Multikey, ViewBuilder};
+use multi_sig::Multisig;
 use multi_util::CodecInfo;
 use std::{fmt, io::Write};
 use wasmtime::{StoreLimits, Val};
@@ -333,8 +333,9 @@ impl Context {
     ///
     /// Takes hash bytes (from WASM memory) and a KVP path string.
     /// Decodes the hash bytes as a Multihash, validates the hash algorithm,
-    /// reads the Multikey from `current.get(key)`, uses its `fingerprint_view`
-    /// to compute the fingerprint with the same hash codec, and compares.
+    /// reads the Multikey from `current.get(key)`, builds its fingerprint view
+    /// through `ViewBuilder` to compute the fingerprint with the same hash
+    /// codec, and compares.
     /// No pstack interaction.
     pub fn check_preimage_value(&mut self, hash_bytes: &[u8], key: &str) -> Val {
         // Decode hash bytes as Multihash
@@ -364,7 +365,7 @@ impl Context {
         };
 
         // Compute fingerprint using Multikey's fingerprint view
-        let fp_view = match pubkey.fingerprint_view() {
+        let fp_view = match ViewBuilder::new(&pubkey).fingerprint().build() {
             Ok(v) => v,
             Err(e) => return self.check_fail(&e.to_string()),
         };
@@ -433,7 +434,7 @@ impl Context {
             }
         };
 
-        let verify_view = match pubkey.verify_view() {
+        let verify_view = match ViewBuilder::new(&pubkey).verify().build() {
             Ok(v) => v,
             Err(e) => return self.check_fail(&e.to_string()),
         };
@@ -475,7 +476,11 @@ impl Context {
                 Some(i) => i,
                 None => return Err("XMSS multisig missing sig-index".into()),
             };
-            let pubkey_bytes = match pubkey.data_view().and_then(|dv| dv.key_bytes()) {
+            let pubkey_bytes = match ViewBuilder::new(pubkey)
+                .data()
+                .build()
+                .and_then(|dv| dv.key_bytes())
+            {
                 Ok(b) => b,
                 Err(e) => return Err(e.to_string()),
             };
@@ -484,7 +489,11 @@ impl Context {
         // Lamport keys are one-time: enforce that this public key has not
         // already signed an earlier entry in the log.
         if is_lamport_sig(codec) {
-            let pubkey_bytes = match pubkey.data_view().and_then(|dv| dv.key_bytes()) {
+            let pubkey_bytes = match ViewBuilder::new(pubkey)
+                .data()
+                .build()
+                .and_then(|dv| dv.key_bytes())
+            {
                 Ok(b) => b,
                 Err(e) => return Err(e.to_string()),
             };
@@ -495,11 +504,19 @@ impl Context {
         // after the depth byte). Enforce monotonic consumption across
         // the log.
         if is_lamport_merkle_sig(codec) {
-            let pubkey_bytes = match pubkey.data_view().and_then(|dv| dv.key_bytes()) {
+            let pubkey_bytes = match ViewBuilder::new(pubkey)
+                .data()
+                .build()
+                .and_then(|dv| dv.key_bytes())
+            {
                 Ok(b) => b,
                 Err(e) => return Err(e.to_string()),
             };
-            let sig_bytes = match sig.data_view().and_then(|dv| dv.sig_bytes()) {
+            let sig_bytes = match multi_sig::ViewBuilder::new(sig)
+                .data()
+                .build()
+                .and_then(|dv| dv.sig_bytes())
+            {
                 Ok(b) => b,
                 Err(e) => return Err(e.to_string()),
             };
