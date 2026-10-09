@@ -291,27 +291,34 @@ impl Context {
             ));
         }
 
-        // get the preimage data from the stack
+        // get the preimage data from the stack. The builder pins a 32-byte
+        // digest: extendable-output codecs require a length, and 32 is the
+        // length multi-hash 1.x produced, so stored hashes keep their bytes.
+        // Fixed-output codecs ignore the setting.
         let preimage = {
             match self.pstack.top() {
-                Some(Value::Bin { hint: _, data }) => {
-                    match mh::Builder::new_from_bytes(hash.codec(), data.as_ref()) {
-                        Ok(builder) => match builder.try_build() {
+                Some(Value::Bin { hint: _, data }) => match mh::Builder::new(hash.codec()) {
+                    Ok(mut builder) => {
+                        builder.update(data.as_ref());
+                        builder.output_len(32);
+                        match builder.try_build() {
                             Ok(hash) => hash,
                             Err(e) => return self.check_fail(&e.to_string()),
-                        },
-                        Err(e) => return self.check_fail(&e.to_string()),
+                        }
                     }
-                }
-                Some(Value::Str { hint: _, data }) => {
-                    match mh::Builder::new_from_bytes(hash.codec(), data.as_ref().as_bytes()) {
-                        Ok(builder) => match builder.try_build() {
+                    Err(e) => return self.check_fail(&e.to_string()),
+                },
+                Some(Value::Str { hint: _, data }) => match mh::Builder::new(hash.codec()) {
+                    Ok(mut builder) => {
+                        builder.update(data.as_ref().as_bytes());
+                        builder.output_len(32);
+                        match builder.try_build() {
                             Ok(hash) => hash,
                             Err(e) => return self.check_fail(&e.to_string()),
-                        },
-                        Err(e) => return self.check_fail(&e.to_string()),
+                        }
                     }
-                }
+                    Err(e) => return self.check_fail(&e.to_string()),
+                },
                 _ => return self.check_fail("no multihash data on stack"),
             }
         };

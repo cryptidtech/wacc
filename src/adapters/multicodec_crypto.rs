@@ -33,9 +33,15 @@ impl HashVerifier for MulticodecHashVerifier {
             )));
         }
 
-        // Compute hash of preimage using same algorithm
-        let computed = mh::Builder::new_from_bytes(hash.codec(), preimage)
-            .map_err(|e| CryptoError::Other(format!("Failed to hash preimage: {e}")))?
+        // Compute hash of preimage using same algorithm. The builder pins a
+        // 32-byte digest: extendable-output codecs require a length, and 32 is
+        // the length multi-hash 1.x produced, so stored hashes keep their
+        // bytes. Fixed-output codecs ignore the setting.
+        let mut builder = mh::Builder::new(hash.codec())
+            .map_err(|e| CryptoError::Other(format!("Failed to hash preimage: {e}")))?;
+        builder.update(preimage);
+        builder.output_len(32);
+        let computed = builder
             .try_build()
             .map_err(|e| CryptoError::Other(format!("Failed to build hash: {e}")))?;
 

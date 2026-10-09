@@ -333,3 +333,42 @@ fn test_preimage_wasm() {
         assert_eq!(context.rstack.top(), Some(Value::Success(0)));
     }
 }
+
+/// A blake3-256 preimage recorded under multi-hash 1.x. The `1e 20` prefix
+/// pins the codec and the 32-byte digest that version produced. The stored
+/// bytes must stay identical after the streaming-builder migration so stored
+/// preimage checks keep succeeding against stored hashes.
+const BLAKE3_PREIMAGE: &[u8] = b"for great justice";
+const BLAKE3_PREIMAGE_MH_HEX: &str =
+    "1e203968072b77e9d76ef401cceb94daccf582c928cde470fac6505200f35e7a8c7b";
+
+#[test]
+fn test_blake3_preimage_bytes_preserved() {
+    use multi_codec::Codec;
+    use multi_hash::mh;
+
+    // The streaming builder must pin the digest length for an
+    // extendable-output codec. 32 bytes is the length multi-hash 1.x produced.
+    let mut builder = mh::Builder::new(Codec::Blake3).expect("blake3 is a hash codec");
+    builder.update(BLAKE3_PREIMAGE);
+    builder.output_len(32);
+    let computed = builder.try_build().expect("the digest length is valid");
+    let recorded = hex::decode(BLAKE3_PREIMAGE_MH_HEX).expect("recorded bytes parse");
+    assert_eq!(Vec::<u8>::from(computed), recorded);
+}
+
+#[test]
+fn test_truncated_blake3_digest_fails_closed() {
+    use wacc::adapters::multicodec_crypto::MulticodecHashVerifier;
+    use wacc::ports::crypto::HashVerifier;
+
+    // A stored blake3 digest cut short must keep failing the check, exactly as
+    // under multi-hash 1.x: the length prefix still claims 32 digest bytes.
+    let mut stored = hex::decode(BLAKE3_PREIMAGE_MH_HEX).expect("recorded bytes parse");
+    stored.pop();
+    let verifier = MulticodecHashVerifier;
+    assert!(
+        verifier.verify_preimage(&stored, BLAKE3_PREIMAGE).is_err(),
+        "a truncated stored digest must fail closed"
+    );
+}

@@ -43,7 +43,7 @@ Add this to your `Cargo.toml`:
 wacc = "0.1"
 ```
 
-MSRV: Rust 1.85.
+MSRV: Rust 1.99.
 
 ## Usage
 

@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-10-08
+
+### Changed
+
+- Migrated the crate to multi-hash 2.0. The three preimage-hash sites — the `check_preimage` binary and string arms in `vm/context.rs` and `MulticodecHashVerifier::verify_preimage` in `adapters/multicodec_crypto.rs` — moved from the removed `Builder::new_from_bytes` one-shot to the streaming shape (`Builder::new` plus `update` and `try_build`). Each site pins `.output_len(32)`, the digest length multi-hash 1.1 produced, so stored preimage hashes keep their bytes; blake3 is an extendable-output codec and requires the length, and fixed-output codecs ignore it. The `ALLOWED_HASH_CODECS` whitelist and its fail-closed behavior are unchanged.
+- Updated dependencies: `multi-hash` 1.1 → 2.0, `multi-key` 2.1 → 2.2, `multi-cid` 0.2 → 0.3. The graph resolves a single multi-hash major: 2.0.1, which declares `rust-version = "1.99"`. The `multi-key` raise is required for type coherence: `check_preimage_value` compares `fingerprint()` results with this crate's multi-hash-2-typed `Multihash`. `Cid` is opaque in this crate, so the `multi-cid` raise is a coherence choice.
+- Added two preimage regression tests: one asserts the recomputed blake3-256 multihash matches the bytes recorded under multi-hash 1.1; one asserts a truncated stored digest still fails closed. No public API changes.
+
 ## [2.2.1] - 2026-10-07
 
 ### Changed
@@ -103,6 +111,7 @@ different from 1.0.5.
 
 - Previous standalone release. Used `wasmtime 19.0`, `thiserror 1.0`, and FSL-1.1 license. Git deps for `multicid`, `multihash`, `multikey`, `multisig`, `multitrait`, `multiutil`.
 
+[2.3.0]: https://github.com/cryptidtech/wacc/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/cryptidtech/wacc/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/cryptidtech/wacc/compare/v2.1.2...v2.2.0
 [2.1.1]: https://github.com/cryptidtech/wacc/compare/v2.1.0...v2.1.1
